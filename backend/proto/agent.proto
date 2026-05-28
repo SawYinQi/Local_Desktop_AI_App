@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package agent;
+
+service AgentService {
+  rpc UploadVideo (VideoRequest) returns (VideoResponse);
+  rpc SendQuery (QueryRequest) returns (QueryResponse);
+}
+
+message VideoRequest {
+  string session_id = 1;
+  string file_path = 2;
+}
+
+message VideoResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message QueryRequest {
+  string session_id = 1;
+  string query = 2;
+}
+
+message QueryResponse {
+  string response = 1;
+  bool needs_clarification = 2;
+  string clarification_prompt = 3;
+  string artifact_path = 4;
+}
