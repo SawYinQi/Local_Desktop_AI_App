@@ -26,7 +26,8 @@ if _version_not_supported:
 
 
 class AgentServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """Contract set of RPC methods
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -39,7 +40,7 @@ class AgentServiceStub(object):
                 request_serializer=agent__pb2.VideoRequest.SerializeToString,
                 response_deserializer=agent__pb2.VideoResponse.FromString,
                 _registered_method=True)
-        self.SendQuery = channel.unary_unary(
+        self.SendQuery = channel.unary_stream(
                 '/agent.AgentService/SendQuery',
                 request_serializer=agent__pb2.QueryRequest.SerializeToString,
                 response_deserializer=agent__pb2.QueryResponse.FromString,
@@ -47,7 +48,8 @@ class AgentServiceStub(object):
 
 
 class AgentServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """Contract set of RPC methods
+    """
 
     def UploadVideo(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -69,7 +71,7 @@ def add_AgentServiceServicer_to_server(servicer, server):
                     request_deserializer=agent__pb2.VideoRequest.FromString,
                     response_serializer=agent__pb2.VideoResponse.SerializeToString,
             ),
-            'SendQuery': grpc.unary_unary_rpc_method_handler(
+            'SendQuery': grpc.unary_stream_rpc_method_handler(
                     servicer.SendQuery,
                     request_deserializer=agent__pb2.QueryRequest.FromString,
                     response_serializer=agent__pb2.QueryResponse.SerializeToString,
@@ -83,7 +85,8 @@ def add_AgentServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class AgentService(object):
-    """Missing associated documentation comment in .proto file."""
+    """Contract set of RPC methods
+    """
 
     @staticmethod
     def UploadVideo(request,
@@ -123,7 +126,7 @@ class AgentService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(
+        return grpc.experimental.unary_stream(
             request,
             target,
             '/agent.AgentService/SendQuery',

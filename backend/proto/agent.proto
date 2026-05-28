@@ -2,29 +2,32 @@ syntax = "proto3";
 
 package agent;
 
+// Contract set of RPC methods
 service AgentService {
-  rpc UploadVideo (VideoRequest) returns (VideoResponse);
-  rpc SendQuery (QueryRequest) returns (QueryResponse);
+  rpc UploadVideo (VideoRequest) returns (VideoResponse); 
+  rpc SendQuery (QueryRequest) returns ( stream QueryResponse);
 }
 
+// Message structure 
+
 message VideoRequest {
-  string session_id = 1;
-  string file_path = 2;
+  string session_id = 1;  // chat id
+  string file_path = 2; // path to video
 }
 
 message VideoResponse {
-  bool success = 1;
-  string message = 2;
+  bool success = 1; // upload success?
+  string message = 2; // return status or error message
 }
 
 message QueryRequest {
-  string session_id = 1;
-  string query = 2;
+  string session_id = 1;  // chat id
+  string query = 2; // user's prompt 
 }
 
 message QueryResponse {
-  string response = 1;
-  bool needs_clarification = 2;
-  string clarification_prompt = 3;
-  string artifact_path = 4;
+  string response = 1;  // chunk of text answer from agent
+  bool needs_clarification = 2; // does agent need more info?
+  string clarification_prompt = 3; // prompt user if clarification needed
+  string artifact_path = 4; // path to any generated file (e.g. pdf, diagram, pptx)
 }
