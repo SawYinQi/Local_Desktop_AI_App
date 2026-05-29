@@ -12,14 +12,21 @@ def run():
     # translate function calls to network request
     stub = agent_pb2_grpc.AgentServiceStub(channel)
 
+    upload = stub.UploadVideo(
+        agent_pb2.VideoRequest(session_id="test-1", file_path="sample.mp4")
+    )
+
+    print("Upload: ", upload.message) # log server response to upload
+
     # send query to server
     responses = stub.SendQuery(
         agent_pb2.QueryRequest(session_id="test-1", query="transcribe the video")
     )
 
     # Handles streaming responses 
+    print("Server replied: ")
     for response in responses:
-        print("Server replied:", response.response)
+        print(response.response)
 
 
 if __name__ == "__main__":

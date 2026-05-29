@@ -3,17 +3,21 @@ import grpc
 
 import agent_pb2
 import agent_pb2_grpc
+from agents.transcription_agent import transcribe
 
-'''
+# temporary dictionary memory of video session id : video_path
+session_videos = {}
+
+"""
 Class AgentService inherits agent_pb2_grpc.AgentServiceServicer
 Overrides placeholder in parent class with Upload/Query Logic
-'''
+"""
 class AgentService(agent_pb2_grpc.AgentServiceServicer):
 
     def UploadVideo(self, request, context):
         # log session id + file_path
         print(f"UploadVideo: session={request.session_id} path={request.file_path}")
-
+        session_videos[request.session_id] = request.file_path # store video path for session
         # return response
         return agent_pb2.VideoResponse(
             # dummy values
@@ -23,22 +27,34 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
 
     
     def SendQuery(self, request, context):
+        query =  request.query.lower()
+        session = request.session_id
         # log session id + query 
-        print(f"SendQuery: session={request.session_id} query={request.query}")
-        # return yeild response stream
-        yield agent_pb2.QueryResponse(
-            #dummy values
-            response=f"You asked: '{request.query}'. (Backend is alive!)", 
-            needs_clarification=False, 
-            clarification_prompt="",
-            artifact_path="",
-        )
+        print(f"SendQuery: session={session} query={query}")
 
+        video_path = session_videos.get(session) # get video path for session
+
+        # simple keyword-based routing of query to agent function; replace with LLM orchestration later on 
+        if "transcribe" in query or "transcript" in query:
+
+            # if no video uploaded for session, return error response
+            if not video_path:
+                yield agent_pb2.QueryResponse(response="No video uploaded yet. Please upload a video first.")
+                return
+            
+            # if video exists for session, call transcription agent and stream response back to client
+            yield agent_pb2.QueryResponse(response="Transcribing...")
+            transcript = transcribe(video_path) 
+            yield agent_pb2.QueryResponse(response=transcript) 
+            return
+        
+        # fallback for unknown queries
+        yield agent_pb2.QueryResponse(response=f"I received: '{request.query}', but I can't handle that yet.")
 
 def serve():
     # create server 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    # add overwritten AgentService logic to gRPC server engine
+    # add overridden AgentService logic to gRPC server engine
     agent_pb2_grpc.add_AgentServiceServicer_to_server(AgentService(), server)
     # server listen on port 50051
     server.add_insecure_port("[::]:50051")
