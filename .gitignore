@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python virtual environments
+venv/
+**/venv/
+__pycache__/
+*.pyc
+
+# Local media (don't commit test videos)
+*.mp4
