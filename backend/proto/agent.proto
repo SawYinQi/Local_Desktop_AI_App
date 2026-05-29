@@ -29,5 +29,5 @@ message QueryResponse {
   string response = 1;  // chunk of text answer from agent
   bool needs_clarification = 2; // does agent need more info?
   string clarification_prompt = 3; // prompt user if clarification needed
-  string artifact_path = 4; // path to any generated file (e.g. pdf, diagram, pptx)
+  string artifact_path = 4; // path to any generated file (e.g. pdf, pptx)
 }

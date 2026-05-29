@@ -3,7 +3,7 @@ import grpc
 
 import agent_pb2
 import agent_pb2_grpc
-from agents.transcription_agent import transcribe
+from mcp_client import call_tool
 
 # temporary dictionary memory of video session id : video_path
 session_videos = {}
@@ -42,10 +42,10 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 yield agent_pb2.QueryResponse(response="No video uploaded yet. Please upload a video first.")
                 return
             
-            # if video exists for session, call transcription agent and stream response back to client
+            # if video exist, call mcp client to run transcription tool and stream response back to client; replace with LLM orchestration later on
             yield agent_pb2.QueryResponse(response="Transcribing...")
-            transcript = transcribe(video_path) 
-            yield agent_pb2.QueryResponse(response=transcript) 
+            transcript = call_tool("transcription", "transcribe_video", {"file_path": video_path})
+            yield agent_pb2.QueryResponse(response=transcript)
             return
         
         # fallback for unknown queries
