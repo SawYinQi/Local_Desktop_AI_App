@@ -3,7 +3,7 @@ import grpc
 
 import agent_pb2
 import agent_pb2_grpc
-from mcp_client import call_tool
+import orchestrator
 
 # temporary dictionary memory of video session id : video_path
 session_videos = {}
@@ -27,29 +27,21 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
 
     
     def SendQuery(self, request, context):
-        query =  request.query.lower()
         session = request.session_id
-        # log session id + query 
-        print(f"SendQuery: session={session} query={query}")
+        query = request.query
+        print(f"SendQuery: session={session} query={query!r}")
 
-        video_path = session_videos.get(session) # get video path for session
-
-        # simple keyword-based routing of query to agent function; replace with LLM orchestration later on 
-        if "transcribe" in query or "transcript" in query:
-
-            # if no video uploaded for session, return error response
-            if not video_path:
-                yield agent_pb2.QueryResponse(response="No video uploaded yet. Please upload a video first.")
-                return
-            
-            # if video exist, call mcp client to run transcription tool and stream response back to client; replace with LLM orchestration later on
-            yield agent_pb2.QueryResponse(response="Transcribing...")
-            transcript = call_tool("transcription", "transcribe_video", {"file_path": video_path})
-            yield agent_pb2.QueryResponse(response=transcript)
-            return
+        video_path = session_videos.get(session)
         
-        # fallback for unknown queries
-        yield agent_pb2.QueryResponse(response=f"I received: '{request.query}', but I can't handle that yet.")
+        # delegate handling of query to orchestrator
+        for event in orchestrator.handle_query(session_id=session,query=query,video_path=video_path,):
+            # stream responses back to client as they come in from the orchestrator 
+            yield agent_pb2.QueryResponse(
+                response=event.get("response", ""),
+                needs_clarification=event.get("needs_clarification", False),
+                clarification_prompt=event.get("clarification_prompt", ""),
+                artifact_path=event.get("artifact_path", ""),
+            )
 
 def serve():
     # create server 
