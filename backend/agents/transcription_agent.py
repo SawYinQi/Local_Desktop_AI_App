@@ -1,23 +1,65 @@
-import whisper
+import sys
+from pathlib import Path
 
-_model = None # global variable to cache the loaded model
+# Add backend/ to sys.path so we can import utils.runtime
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
-# Lazy load the Whisper model 
-def _get_model():
-    global _model
+from utils.runtime import pick_backend
 
-    # load the model once and cache it for future use
-    if _model is None:
-        print("Transcription: loading Whisper model...")
-        _model = whisper.load_model("base") 
-        print("Transcription: model loaded.")
-    return _model
+OV_MODEL_PATH = BACKEND_DIR / "models" / "whisper-base-int8-ov" # OpenVINO-optimized model path
+HF_MODEL_PATH = BACKEND_DIR / "models" / "whisper-base" # Hugging Face model path 
 
-# Transcribe the video at the given path and return the transcript text
+
+_pipe = None
+
+# Lazy load pipeline 
+def _ensure_loaded():
+    global _pipe
+    # if already loaded, skip.
+    if _pipe is not None:
+        return
+    
+    # else load the appropriate model and create the transcription pipeline based on the host platform
+    backend = pick_backend() 
+    if backend == "openvino" and not OV_MODEL_PATH.exists():
+        backend = "transformers"  
+    
+    # load OpenVINO model 
+    if backend == "openvino":
+
+        from optimum.intel.openvino import OVModelForSpeechSeq2Seq
+        from transformers import AutoProcessor
+
+        model = OVModelForSpeechSeq2Seq.from_pretrained(str(OV_MODEL_PATH))
+        processor = AutoProcessor.from_pretrained(str(OV_MODEL_PATH))
+
+    # load Hugging Face model 
+    else:
+
+        import torch
+        from transformers import AutoProcessor, WhisperForConditionalGeneration
+
+        model = WhisperForConditionalGeneration.from_pretrained(str(HF_MODEL_PATH))
+        if torch.backends.mps.is_available():
+            model = model.to("mps")
+        processor = AutoProcessor.from_pretrained(str(HF_MODEL_PATH))
+
+    from transformers import pipeline
+
+    # transcription pipline
+    _pipe = pipeline(
+        "automatic-speech-recognition", # task name for the pipeline audio -> text
+        model=model,  # the loaded model (either OpenVINO or Hugging Face)
+        tokenizer=processor.tokenizer,  # the processor's tokenizer for text encoding/decoding
+        feature_extractor=processor.feature_extractor, # the processor's feature extractor for audio preprocessing
+        chunk_length_s=30, stride_length_s=5,       # process long audio in 30s chunks with 5s overlap to avoid cutting off words
+    )
+
 def transcribe(video_path: str) -> str:
-    model = _get_model()
-    print(f"Transcription: transcribing {video_path} ...")
-    result = model.transcribe(video_path, fp16=False) 
-    text = result["text"].strip()
-    print("Transcription: done.")
-    return text
+    # initialise the transcription pipeline if not already loaded
+    _ensure_loaded()
+    # call the pipeline on the given video file path and return the transcribed text
+    return _pipe(video_path)["text"]                  
+

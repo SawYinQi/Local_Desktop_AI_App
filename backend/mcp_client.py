@@ -32,3 +32,33 @@ async def _call_tool_async(server_name: str, tool_name: str, arguments: dict) ->
 # Adapter function to call the async tool caller from synchronous code
 def call_tool(server_name: str, tool_name: str, arguments: dict) -> str:
     return asyncio.run(_call_tool_async(server_name, tool_name, arguments))
+
+# Async helper function to list tools from an MCP server and return them as a list
+async def _list_tools_async(server_name: str) -> list:
+    params = SERVERS[server_name]
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            response = await session.list_tools()
+            return response.tools
+
+# Discover all tools across every registered MCP server. Used by the orchestrator
+# to give the LLM an up-to-date tool list without hand-maintaining schemas here.
+def list_all_tools() -> dict:
+    registry = {}
+    for server_name in SERVERS:
+        tools = asyncio.run(_list_tools_async(server_name))
+        for tool in tools:
+            registry[tool.name] = {
+                "server": server_name,
+                "schema": {
+                    "type": "function",
+                    "function": {
+                        "name": tool.name,
+                        "description": tool.description or "",
+                        "parameters": tool.inputSchema or {"type": "object", "properties": {}},
+                    },
+                },
+            }
+
+    return registry

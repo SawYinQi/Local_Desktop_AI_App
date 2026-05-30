@@ -1,8 +1,10 @@
 import sys
-import os
+from pathlib import Path
 
-# backend/ to path so we can import transcription agent
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add backend/ to sys.path so we can import the agent module.
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from mcp.server.fastmcp import FastMCP
 from agents.transcription_agent import transcribe
