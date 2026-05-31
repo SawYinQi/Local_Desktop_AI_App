@@ -20,7 +20,7 @@ def run():
 
     # send query to server
     responses = stub.SendQuery(
-        agent_pb2.QueryRequest(session_id="test-1", query="transcribe the video")
+        agent_pb2.QueryRequest(session_id="test-1", query="what was by previous question about?")
     )
 
     # Handles streaming responses 

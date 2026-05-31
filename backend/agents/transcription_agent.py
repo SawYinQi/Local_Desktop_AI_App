@@ -44,6 +44,8 @@ def _ensure_loaded():
         model = WhisperForConditionalGeneration.from_pretrained(str(HF_MODEL_PATH))
         if torch.backends.mps.is_available():
             model = model.to("mps")
+        elif torch.cuda.is_available():
+            _model = _model.to("cuda")
         processor = AutoProcessor.from_pretrained(str(HF_MODEL_PATH))
 
     from transformers import pipeline
@@ -54,7 +56,7 @@ def _ensure_loaded():
         model=model,  # the loaded model (either OpenVINO or Hugging Face)
         tokenizer=processor.tokenizer,  # the processor's tokenizer for text encoding/decoding
         feature_extractor=processor.feature_extractor, # the processor's feature extractor for audio preprocessing
-        chunk_length_s=30, stride_length_s=5,       # process long audio in 30s chunks with 5s overlap to avoid cutting off words
+        chunk_length_s=30, stride_length_s=5  # process long audio in 30s chunks with 5s overlap to avoid cutting off words
     )
 
 def transcribe(video_path: str) -> str:

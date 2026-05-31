@@ -13,7 +13,12 @@ SERVERS = {
         command= sys.executable,
         args=["-m", "MCP.transcription_server"],
         cwd=BACKEND_DIR
-    )
+    ),
+    "vision": StdioServerParameters(
+        command= sys.executable,
+        args=["-m", "MCP.vision_server"],
+        cwd=BACKEND_DIR
+    ),
 }
 
 # Async helper function to call a tool on an MCP server and return the result as a string
@@ -57,8 +62,8 @@ def list_all_tools() -> dict:
                         "name": tool.name,
                         "description": tool.description or "",
                         "parameters": tool.inputSchema or {"type": "object", "properties": {}},
-                    },
-                },
+                    }
+                }
             }
 
     return registry

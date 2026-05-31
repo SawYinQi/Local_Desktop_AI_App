@@ -75,7 +75,7 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 512) -
         tokenize=False
     )
 
-    # generate a response from the model and decode it back to text
+    # tokenizer converts the prompt into input tensors for the model
     inputs = _tokenizer(prompt, return_tensors="pt")
 
     # if using Hugging Face, move the inputs to the same device as the model (e.g. GPU) for faster inference
@@ -86,7 +86,7 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 512) -
     output_ids = _model.generate(
         **inputs, # unpack the tokenized prompt as model inputs
         max_new_tokens=max_new_tokens,
-        do_sample=False, # use greedy decoding )
+        do_sample=False, # use greedy decoding 
         pad_token_id=_tokenizer.eos_token_id  # set what to use for padding
     )
 

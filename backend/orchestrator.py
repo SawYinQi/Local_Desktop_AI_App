@@ -3,22 +3,30 @@ import json
 import llm
 import mcp_client
 
-NEEDS_FILE_PATH_INJECTION = {"transcribe_video"}
+NEEDS_FILE_PATH_INJECTION = {"transcribe_video", "analyze_video"}
 
 SYSTEM_PROMPT = (
     "You are a helpful assistant for a local video analysis app. You have tools to "
-    "transcribe, analyze, and generate reports from the user's uploaded videos.\n"
-    "Call a tool ONLY when the user clearly asks for that action (e.g. 'transcribe the "
-    "video', 'what objects are shown', 'make a PDF'). For greetings, opinions, general "
-    "questions, or anything about the conversation itself, answer DIRECTLY without a tool.\n"
-    "When you transcribe, return the tool's text essentially verbatim  with fixes to obvious"
-    "misspellings of real words/brand names/phrase, but keep the wording and meaning intact.\n"
-    "When asked to summarize, give a concise natural-language summary. Be concise and direct."
+    "transcribe the audio and analyze the visuals of the user's uploaded videos.\n"
+
+    "TOOL USE:\n"
+    "- For ANY question about the video's content (describe it, what is "
+    "happening, what objects/scenes/text/graphs appear, etc.), call analyze_video (visuals).\n"
+    "- If the user explicitly wants just the spoken words (e.g. 'transcribe "
+    "the video', 'what was said'), call transcribe_video.\n"
+    "- For greetings, opinions, general questions, or talk about the conversation itself, "
+    "answer DIRECTLY with no tool.\n"
+
+    "When calling analyze_video, pass a 'query' that captures what the user wants to know.\n"
+    "When transcribing, return the transcript essentially verbatim, fixing only obvious "
+    "misspellings of real words/brand names/phrases; keep the wording and meaning intact.\n"
+    "When summarizing, give a concise natural-language summary. Be concise and direct."
 )
 
 # Limit number of iteration of LLM tool call; prevent infinite loop
 MAX_ITERATIONS = 3
 
+_session_history: dict = {}
 
 # Discover available tools from MCP servers
 _TOOLS = mcp_client.list_all_tools() 
@@ -57,9 +65,12 @@ def _tools_for_llm() -> list:
 def handle_query(session_id: str, query: str, video_path: str | None):
     print(f"Orchestrator: session={session_id} query={query!r} video_path={video_path}")
 
+    prior = _session_history.get(session_id, [])
+
     # Initialize the message history with the system prompt and the user's query
     messages: list = [
         {"role": "system", "content": SYSTEM_PROMPT},
+        *prior, # add any prior messages in this session for context
         {"role": "user", "content": query},
     ]
 
@@ -74,6 +85,10 @@ def handle_query(session_id: str, query: str, video_path: str | None):
 
         # if the LLM returns a text response, yield it and end the conversation
         if result["type"] == "text":
+            _session_history[session_id] = prior + [
+                {"role": "user", "content": query},
+                {"role": "assistant", "content": result["content"]},
+            ]
             yield _event(response=result["content"])
             return
 
