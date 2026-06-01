@@ -4,27 +4,66 @@ import llm
 import mcp_client
 
 NEEDS_FILE_PATH_INJECTION = {"transcribe_video", "analyze_video"}
+GENERATION_TOOLS = {"generate_pdf", "generate_pptx"}
+
+TOOL_HEADERS = {
+    "analyze_video": "VISUAL ANALYSIS FINDINGS",
+    "transcribe_video": "AUDIO TRANSCRIPT",
+    "generate_pdf": "MAKE PDF",
+    "generate_pptx": "MAKE PPTX"
+}
 
 SYSTEM_PROMPT = (
-    "You are a helpful assistant for a local video analysis app. You have tools to "
-    "transcribe the audio and analyze the visuals of the user's uploaded videos.\n"
+    "You are an honest assistant for video content analysis and a general knowledge AI.\n"
+    "You have access to the following tools: \n"
+    "1. transcribe_video - used to transcribe the audio in the video for descriptive information\n"
+    "2. analyze_video -   used for visual analysis of video content\n"
+    "3. generate_pdf - used to generate a PDF report from structured content\n"
+    "4. generate_pptx - used to generate a PowerPoint presentation from structured content\n"
+    "You MUST NOT call a tool that is NOT in the above list; You MUST NEVER invent tool names/calls\n" 
+    "You MUST ensure your response are concise\n"
+    "You MUST NOT fabricate any information you did not get from tool results\n"
+    "You MUST NOT make up any issue that you cannot prove with supporting evidence\n\n"
 
-    "TOOL USE:\n"
-    "- For ANY question about the video's content (describe it, what is "
-    "happening, what objects/scenes/text/graphs appear, etc.), call analyze_video (visuals).\n"
-    "- If the user explicitly wants just the spoken words (e.g. 'transcribe "
-    "the video', 'what was said'), call transcribe_video.\n"
-    "- For greetings, opinions, general questions, or talk about the conversation itself, "
-    "answer DIRECTLY with no tool.\n"
+    "TOOL DECISION RULES (apply in order — rule 1 wins on ambiguity):\n"
+    "\n"
+    "1. DEFAULT — NO TOOL for:\n"
+    "   - Greetings ('hi', 'hello'), thanks ('thank you', 'thanks', 'ok')\n"
+    "   - Math, general knowledge questions\n"
+    "   - Statements/questions about yourself, the user, or this app\n"
+    "   - questions about the conversation ('what did we talk about?')\n"
+    "   When in doubt → no tool.\n"
+    "\n"
+    "2. analyze_video ONLY — for questions about VISUAL content only:\n"
+    "   - 'what is shown', 'describe the scene', 'what objects appear'\n"
+    "   - colors, graphs, charts, on-screen text, faces, settings, environments\n"
+    "\n"
+    "3. transcribe_video ONLY — for questions about AUDIO content only OR DIRECT transcription VERBATIM:\n"
+    "   - 'what was said', 'transcribe the audio', 'what does the speaker say'\n"
+    "   - dialogue, narration, voice-over content\n"
+    "\n"
+    "4. BOTH analyze_video AND transcribe_video — for:\n"
+    "   - Brand/product/name questions (info may be visual, audio, or both)\n"
+    "   - 'summarize', 'describe', 'tell me about', 'what is the video about', ''\n"
+    "   - Any 'comprehensive', 'in-depth', or 'overview' request\n"
+    "   - Queries asking about multiple aspects (e.g. 'the cast and the dialogue')\n"
+    "\n"
+    "5. GENERATE PDF or PPTX — ONLY if the user EXPLICITLY says one of these keywords or is synonymous to one of theses keywords:\n"
+    "   - For PDF: 'PDF', 'report', 'document', 'summary document' → generate_pdf\n"
+    "   - For PPTX: 'PPTX', 'PPT', 'PowerPoint', 'slide deck', 'slides', 'presentation' → generate_pptx\n"
+    "   When generating ABOUT THE VIDEO: first apply rule 4 (call BOTH analysis tools), THEN call the generation tool.\n"
+    "   When generating ABOUT THE PRIOR CONVERSATION (e.g. 'summarize our discussion as a PDF'):\n"
+    "   call generate_pdf or generate_pptx DIRECTLY — DO NOT call analyze_video or transcribe_video.\n"
+    "\n"
+    "6. ACKNOWLEDGMENT RULE — if the user just says 'thanks', 'ok', 'cool', 'got it':\n"
+    "   Reply with a brief polite text ('You're welcome!') — NO tools, NO new report.\n"
+    "   Even if a previous report was generated, do not re-run anything.\n"
+    "\n"
 
-    "When calling analyze_video, pass a 'query' that captures what the user wants to know.\n"
-    "When transcribing, return the transcript essentially verbatim, fixing only obvious "
-    "misspellings of real words/brand names/phrases; keep the wording and meaning intact.\n"
-    "When summarizing, give a concise natural-language summary. Be concise and direct."
 )
 
 # Limit number of iteration of LLM tool call; prevent infinite loop
-MAX_ITERATIONS = 3
+MAX_ITERATIONS = 5
 
 _session_history: dict = {}
 
@@ -65,6 +104,7 @@ def _tools_for_llm() -> list:
 def handle_query(session_id: str, query: str, video_path: str | None):
     print(f"Orchestrator: session={session_id} query={query!r} video_path={video_path}")
 
+    last_artifact_path = "" # keep track of last generated artifact (e.g. PDF) to include in response events
     prior = _session_history.get(session_id, [])
 
     # Initialize the message history with the system prompt and the user's query
@@ -89,7 +129,7 @@ def handle_query(session_id: str, query: str, video_path: str | None):
                 {"role": "user", "content": query},
                 {"role": "assistant", "content": result["content"]},
             ]
-            yield _event(response=result["content"])
+            yield _event(response=result["content"], artifact_path=last_artifact_path)
             return
 
         # otherwise the LLM still needs tools
@@ -112,6 +152,11 @@ def handle_query(session_id: str, query: str, video_path: str | None):
         server_name = _TOOLS[tool_name]["server"]
         tool_result = mcp_client.call_tool(server_name, tool_name, args)
 
+        if tool_name in GENERATION_TOOLS:
+            last_artifact_path = tool_result.strip()
+
+        header = TOOL_HEADERS.get(tool_name, tool_name.upper())
+
         # append LLM tool calls and tool results to message as context for next LLM query
         messages.append({
             "role": "assistant",
@@ -124,7 +169,7 @@ def handle_query(session_id: str, query: str, video_path: str | None):
         messages.append({
             "role": "tool",
             "name": tool_name,
-            "content": tool_result,
+            "content": f"[{header}]\n{tool_result}"
         })
 
     # notify client of iteration limit

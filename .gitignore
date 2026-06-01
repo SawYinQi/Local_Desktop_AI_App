@@ -32,5 +32,6 @@ __pycache__/
 # Test media
 *.mp4
 
-# models
+# models + model output
 backend/models/
+backend/output/

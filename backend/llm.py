@@ -35,7 +35,6 @@ if BACKEND == "openvino":
     print(f"LLM: loading {MODEL_PATH} ...")
     _model = OVModelForCausalLM.from_pretrained(str(MODEL_PATH)) # load the OpenVINO-optimized model
     _tokenizer = AutoTokenizer.from_pretrained(str(MODEL_PATH)) # load the tokeniser
-    DEVICE = None
 
 # Hugging Face Transformers
 else:  
@@ -52,14 +51,18 @@ else:
     # Loads model
     _model = AutoModelForCausalLM.from_pretrained(
         str(MODEL_PATH),
-        dtype=torch.float16,
-        device_map="auto", # automatically map model layers to available devices (GPU/CPU)
+        dtype=torch.float16
     )
+    if torch.backends.mps.is_available():
+        _model = _model.to("mps")
+    elif torch.cuda.is_available():
+        _model = _model.to("cuda")
+
     _tokenizer = AutoTokenizer.from_pretrained(str(MODEL_PATH)) # load the tokeniser
 
 print("LLM: model loaded.")
 
-def chat(messages: list, tools: list | None = None, max_new_tokens: int = 512) -> dict:
+def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) -> dict:
     """
     messages: list of {"role": "system" | "user", "content": str}
     tools: list of {"name": str, "description": str, "parameters": dict} 

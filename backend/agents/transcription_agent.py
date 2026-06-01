@@ -45,7 +45,7 @@ def _ensure_loaded():
         if torch.backends.mps.is_available():
             model = model.to("mps")
         elif torch.cuda.is_available():
-            _model = _model.to("cuda")
+            model = model.to("cuda")
         processor = AutoProcessor.from_pretrained(str(HF_MODEL_PATH))
 
     from transformers import pipeline

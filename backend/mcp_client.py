@@ -3,9 +3,10 @@ import sys
 import asyncio
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from pathlib import Path
 
 # backend/ dir, used for cwd so subprocess can finds MCP servers
-BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = Path(__file__).resolve().parent 
 
 # Define the MCP servers and their connection parameters
 SERVERS = {
@@ -19,6 +20,11 @@ SERVERS = {
         args=["-m", "MCP.vision_server"],
         cwd=BACKEND_DIR
     ),
+    "generation": StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "MCP.generation_server"],
+        cwd=BACKEND_DIR
+    )
 }
 
 # Async helper function to call a tool on an MCP server and return the result as a string
