@@ -5,7 +5,7 @@ import agent_pb2
 import agent_pb2_grpc
 import orchestrator
 
-# temporary dictionary memory of video session id : video_path
+# In-memory store for session video paths. Key: session_id, Value: file_path
 session_videos = {}
 
 """
@@ -20,7 +20,6 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
         session_videos[request.session_id] = request.file_path # store video path for session
         # return response
         return agent_pb2.VideoResponse(
-            # dummy values
             success=True, 
             message=f"Received video at {request.file_path}", # status msg
         )
@@ -33,14 +32,19 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
 
         video_path = session_videos.get(session)
         
-        # delegate handling of query to orchestrator
-        for event in orchestrator.handle_query(session_id=session,query=query,video_path=video_path,):
-            # stream responses back to client as they come in from the orchestrator 
+        # Delegate handling to the orchestrator
+        try:
+            for event in orchestrator.handle_query(session_id=session, query=query, video_path=video_path):
+                # stream responses back to client as they come in from the orchestrator
+                yield agent_pb2.QueryResponse(
+                    response=event.get("response", ""),
+                    artifact_path=event.get("artifact_path", ""),
+                )
+        except Exception as e:
+            print(f"SendQuery error: {e}")
             yield agent_pb2.QueryResponse(
-                response=event.get("response", ""),
-                needs_clarification=event.get("needs_clarification", False),
-                clarification_prompt=event.get("clarification_prompt", ""),
-                artifact_path=event.get("artifact_path", ""),
+                response=f"Sorry, something went wrong handling that request: {e}",
+                artifact_path="",
             )
 
 def serve():

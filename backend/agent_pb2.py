@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0b\x61gent.proto\x12\x05\x61gent\"5\n\x0cVideoRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\"1\n\rVideoResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"1\n\x0cQueryRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\"s\n\rQueryResponse\x12\x10\n\x08response\x18\x01 \x01(\t\x12\x1b\n\x13needs_clarification\x18\x02 \x01(\x08\x12\x1c\n\x14\x63larification_prompt\x18\x03 \x01(\t\x12\x15\n\rartifact_path\x18\x04 \x01(\t2\x82\x01\n\x0c\x41gentService\x12\x38\n\x0bUploadVideo\x12\x13.agent.VideoRequest\x1a\x14.agent.VideoResponse\x12\x38\n\tSendQuery\x12\x13.agent.QueryRequest\x1a\x14.agent.QueryResponse0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0b\x61gent.proto\x12\x05\x61gent\"5\n\x0cVideoRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\"1\n\rVideoResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"1\n\x0cQueryRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\"8\n\rQueryResponse\x12\x10\n\x08response\x18\x01 \x01(\t\x12\x15\n\rartifact_path\x18\x02 \x01(\t2\x82\x01\n\x0c\x41gentService\x12\x38\n\x0bUploadVideo\x12\x13.agent.VideoRequest\x1a\x14.agent.VideoResponse\x12\x38\n\tSendQuery\x12\x13.agent.QueryRequest\x1a\x14.agent.QueryResponse0\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,7 +38,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_QUERYREQUEST']._serialized_start=128
   _globals['_QUERYREQUEST']._serialized_end=177
   _globals['_QUERYRESPONSE']._serialized_start=179
-  _globals['_QUERYRESPONSE']._serialized_end=294
-  _globals['_AGENTSERVICE']._serialized_start=297
-  _globals['_AGENTSERVICE']._serialized_end=427
+  _globals['_QUERYRESPONSE']._serialized_end=235
+  _globals['_AGENTSERVICE']._serialized_start=238
+  _globals['_AGENTSERVICE']._serialized_end=368
 # @@protoc_insertion_point(module_scope)

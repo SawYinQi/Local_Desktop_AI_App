@@ -1,8 +1,10 @@
 import json
 import platform
-import re
 from pathlib import Path
-from utils.runtime import pick_backend 
+
+from json_repair import repair_json
+
+from utils.runtime import pick_backend
 
 # Model path for OpenVINO(intel) and Hugging Face(Mac/non-intel). 
 OV_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-7b-int4"
@@ -97,20 +99,32 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
     new_tokens = output_ids[0][inputs["input_ids"].shape[1]:] # only take the output tokens 
     text = _tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
-    # check if the model is trying to call a tool by looking for a special <tool_call>...</tool_call> pattern in the output text.
-    match = re.search(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", text, re.DOTALL)
+    # Look for a tool call marked by <tool_call>. Take the JSON after the marker, up to the
+    # closing tag if present, otherwise to the end (the model sometimes truncates the tag).
+    start = text.find("<tool_call>")
+    if start != -1:
+        after = text[start + len("<tool_call>"):]
+        end = after.find("</tool_call>")
+        payload = (after[:end] if end != -1 else after).strip()
 
-    if match:
+        # Parse the JSON. A 3B frequently emits slightly malformed JSON on long tool calls
+        # (e.g. a missing closing ']' on a big report), which would otherwise leak to the user
+        # and silently drop the call. Try strict parsing first, then fall back to json-repair,
+        # which fixes common LLM JSON mistakes so the tool still runs.
+        call = None
         try:
-            # parse the JSON inside the tags to get the tool call details (name and arguments) 
-            call = json.loads(match.group(1)) 
-            # return a dict indicating this is a tool call, along with the tool name and arguments for the orchestrator to execute
-            return {"type": "tool_call", "name": call["name"], "arguments": call.get("arguments", {})}
-        except (json.JSONDecodeError, KeyError):
-            pass
+            call = json.loads(payload)
+        except json.JSONDecodeError:
+            try:
+                call = repair_json(payload, return_objects=True)
+            except Exception:
+                call = None
 
-    # if no tool call pattern is found, return the generated text as the response
-    return {"type": "text", "content": text} 
+        if isinstance(call, dict) and "name" in call:
+            return {"type": "tool_call", "name": call["name"], "arguments": call.get("arguments", {})}
+
+    # no (parseable) tool call found — return the generated text as the response
+    return {"type": "text", "content": text}
 
 
 

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    test_assignment_lib::run()
+    local_desktop_AI_app_lib::run()
 }

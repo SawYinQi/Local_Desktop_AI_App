@@ -16,8 +16,9 @@ mcp = FastMCP("vision")  # instantiate the MCP server
 @mcp.tool()
 def analyze_video(file_path: str, query: str) -> str:
     """
-    Analyze the visuals of a video file at the given path in the context of a user query.
-    returns the analysis as a string.
+    Analyzes ONLY the VISUAL content — objects, scenes, on-screen text, graphs. 
+    CANNOT hear speech; use transcribe_video for spoken words. For full understanding, 
+    use BOTH
     """
     return analyze(query, file_path)
 

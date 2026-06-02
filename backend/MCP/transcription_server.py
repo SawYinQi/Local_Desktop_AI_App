@@ -15,7 +15,8 @@ mcp = FastMCP("transcription") # instantiate the MCP server
 @mcp.tool()
 def transcribe_video(file_path: str) -> str:
     """
-    Transcribe a video file at the given path. Returns the transcript as a string.
+    Transcribes ONLY the spoken AUDIO. CANNOT see anything on screen; 
+    use analyze_video for visuals. For full understanding, use BOTH.
     """
     return transcribe(file_path)
 
