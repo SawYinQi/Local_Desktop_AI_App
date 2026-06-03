@@ -98,14 +98,16 @@ huggingface-cli  download  openai/whisper-base  --local-dir  models/whisper-base
 ```bash
 # If too slow switch to 3B version
 cd  backend
-huggingface-cli  download  OpenVINO/Qwen2.5-7B-Instruct-int4-ov  --local-dir  models/qwen2.5-7b-int4
-huggingface-cli  download  OpenVINO/Qwen2.5-VL-7B-Instruct-int4-ov  --local-dir  models/qwen2.5-vl-7b-int4
+
+huggingface-cli download OpenVINO/Qwen2.5-3B-Instruct-int4-ov --local-dir models/qwen2.5-7b-int4
+huggingface-cli download OpenVINO/Qwen2.5-VL-3B-Instruct-int4-ov --local-dir models/qwen2.5-vl-7b-int4
 huggingface-cli  download  OpenVINO/whisper-base-int8-ov  --local-dir  models/whisper-base-int8-ov
 ```
 
 If the OpenVINO repos aren't available, convert from the base models yourself:
 ```bash
-optimum-cli  export  openvino  --model  Qwen/Qwen2.5-7B-Instruct  --weight-format  int4  models/qwen2.5-7b-int4
+optimum-cli export openvino --model Qwen/Qwen2.5-3B-Instruct --weight-format int4 models/qwen2.5-3b-int4
+optimum-cli export openvino --model Qwen/Qwen2.5-VL-3B-Instruct --weight-format int4 models/qwen2.5-vl-3b-int4
 ```
 
 ### 3. Frontend (React + Tauri)
