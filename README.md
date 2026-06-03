@@ -42,6 +42,8 @@ A fully local and offline desktop application for analyzing and querying short v
 ## Prerequisites
 
 -  **Python 3.11**
+  
+-  **C++ build tools (Windows only)**
 
 -  **Node.js 18+** and npm
 
@@ -62,7 +64,7 @@ A fully local and offline desktop application for analyzing and querying short v
 ```bash
 cd  backend
 python3.11  -m  venv  venv
-source  venv/bin/activate
+source  venv/bin/activate   # venv/scripts/activate (Windows)
 pip  install  -r  requirements.txt
 ```
 
@@ -84,6 +86,7 @@ Place models under `backend/models/`.
 
 ```bash
 cd  backend
+pip install huggingface_hub #if !already
 huggingface-cli  download  Qwen/Qwen2.5-3B-Instruct  --local-dir  models/qwen2.5-3b-instruct
 huggingface-cli  download  Qwen/Qwen2.5-VL-3B-Instruct  --local-dir  models/qwen2.5-vl-3b
 huggingface-cli  download  openai/whisper-base  --local-dir  models/whisper-base
@@ -91,6 +94,7 @@ huggingface-cli  download  openai/whisper-base  --local-dir  models/whisper-base
 
 **Intel hosts** use the OpenVINO runtime with int4/int8 models:
 ```bash
+# If too slow switch to 3B version
 cd  backend
 huggingface-cli  download  OpenVINO/Qwen2.5-7B-Instruct-int4-ov  --local-dir  models/qwen2.5-7b-int4
 huggingface-cli  download  OpenVINO/Qwen2.5-VL-7B-Instruct-int4-ov  --local-dir  models/qwen2.5-vl-7b-int4
@@ -116,13 +120,14 @@ Open **two terminals**:
 **Terminal 1 - backend** (starts the gRPC server + MCP servers):
 ```bash
 cd  backend
-source  venv/bin/activate
+source  venv/bin/activate  # venv/scripts/activate (Windows)
 python  server.py
 # → "gRPC server running on port 50051."
 ```
 
 **Terminal 2 - desktop app:**
 ```bash
+source  venv/bin/activate  # venv/scripts/activate (Windows)
 npm  run  tauri  dev
 ```
 
