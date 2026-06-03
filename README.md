@@ -113,7 +113,7 @@ npm  install
 
 Open **two terminals**:
 
-**Terminal 1 — backend** (starts the gRPC server + MCP servers):
+**Terminal 1 - backend** (starts the gRPC server + MCP servers):
 ```bash
 cd  backend
 source  venv/bin/activate
@@ -121,7 +121,7 @@ python  server.py
 # → "gRPC server running on port 50051."
 ```
 
-**Terminal 2 — desktop app:**
+**Terminal 2 - desktop app:**
 ```bash
 npm  run  tauri  dev
 ```
@@ -213,13 +213,13 @@ A summary of what works, what doesn't, the challenges encountered, and what coul
 - **gRPC - Tauri bridge.** React `invoke()` → Rust `tonic` client → Backend gRPC server,
   responses streamed back.
 
-- **Tool-schema discovery** — orchestrator dynamically discovers tool schemas from MCP servers via `list_all_tools` at startup via MCP client.
+- **Tool-schema discovery** - orchestrator dynamically discovers tool schemas from MCP servers via `list_all_tools` at startup via MCP client.
 
 -  **Transcription** (Whisper) - speech-to-text.
 
 -  **Vision analysis** (Qwen2.5-VL) - VLM answers object recognition, scene captioning, on-screen text, and graph description by varying the query.
 
--  **Generation** — Generates PDF (ReportLab) and PPTX (python-pptx)
+-  **Generation** - Generates PDF (ReportLab) and PPTX (python-pptx)
 
 -  **Persistent chat history** - stored in `localStorage`, survives app restarts.
 
@@ -246,7 +246,7 @@ Almost all problems encountered during testing are due to **the local LLM being 
 
 -  **Bridging synchronous gRPC with asynchronous MCP** - MCP's client API is `async`; gRPC handlers are sync. Wrapped each tool call in `asyncio.run()` to bridge the two; but subprocesses need to be respawned each time.
 
-- **Small-model unpredictability** - The bulk of the effort went into making an unreliable model behave consistently — through prompt scaffolding and code-level guardrails.
+- **Small-model unpredictability** - The bulk of the effort went into making an unreliable model behave consistently - through prompt scaffolding and code-level guardrails.
 
 -  **Apple Silicon constraints** - OpenVINO is CPU-only on Macs (no Metal), and `bitsandbytes` 4-bit is CUDA-only, so the Apple Silicon path is fixed to Hugging Face + MPS in fp16, which caps the practical model size at 3B.
 
