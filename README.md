@@ -51,6 +51,8 @@ A fully local and offline desktop application for analyzing and querying short v
 
 -  **ffmpeg**
 
+-  Protobuf
+
 -  **Disk space**: ~25 GB for default 3B models, ~50 GB for 7B
 
 
