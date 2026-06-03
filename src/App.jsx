@@ -146,7 +146,7 @@ function App() {
         {busy && <div style={{
           display: "inline-block", padding: "6px 10px", 
           borderRadius: 8, color: "#888" ,
-          background: "#eee", padding: "4px 6px"}}><i>Thinking{dots}</i></div>}
+          background: "#eee"}}><i>Thinking{dots}</i></div>}
           
       </div>
       <form onSubmit={(e) => { e.preventDefault(); send(); }} style={{ display: "flex", gap: 8 }}>

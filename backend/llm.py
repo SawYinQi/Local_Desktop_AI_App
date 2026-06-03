@@ -122,6 +122,8 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
 
         if isinstance(call, dict) and "name" in call:
             return {"type": "tool_call", "name": call["name"], "arguments": call.get("arguments", {})}
+        else:
+            return {"type": "text", "content": f"failed to parse tool call JSON, please try again."}
 
     # no (parseable) tool call found — return the generated text as the response
     return {"type": "text", "content": text}

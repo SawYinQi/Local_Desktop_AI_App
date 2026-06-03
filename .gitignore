@@ -29,9 +29,6 @@ venv/
 __pycache__/
 *.pyc
 
-# Test media
-*.mp4
 
 # models + model output
 backend/models/
-backend/output/

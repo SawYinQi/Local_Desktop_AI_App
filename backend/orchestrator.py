@@ -40,9 +40,10 @@ SYSTEM_PROMPT = (
     "   - Math, general knowledge questions\n"
     "   - Statements/questions about yourself, the user, or this app\n"
     "   - questions about the conversation ('what did we talk about?')\n"
-    "   - Summarizing / recapping THIS conversation or 'our discussion/chat' — answer from the\n"
-    "     conversation history with NO tool, EVEN IF the user says 'summarize'\n"
-    "     (only exception: if they want it as a PDF/PPTX, see RULE 5)\n"
+    "   - Summarizing / recapping THIS conversation or 'our discussion/chat' — answer from the"
+    "   conversation history with NO tool, EVEN IF the user says 'summarize'."
+    "   EXCEPTION: if the SAME message also asks for a PDF / PPTX / report, this NO-TOOL rule is"
+    "   CANCELLED — follow RULE 5 and you MUST call the generation tool."
     "   When in doubt → (see CLARIFICATION RULE).\n"
     "\n"
     "2. analyze_video ONLY — for questions about VISUAL content only:\n"
@@ -67,6 +68,13 @@ SYSTEM_PROMPT = (
     "   their own, generation requests — answer them in text.\n"
     "   - For PDF: 'PDF', 'report', 'document' → generate_pdf\n"
     "   - For PPTX: 'PPTX', 'PPT', 'PowerPoint', 'slide deck', 'slides', 'presentation' → generate_pptx\n"
+    "   - This applies NO MATTER what the content is about — the video, OUR conversation, or general\n"
+    "     knowledge. If a format word above appears, calling the generation tool is MANDATORY: first\n"
+    "     gather the content (for a conversation summary, write it yourself from history; for video\n"
+    "     questions, use the tool results), then pass it into generate_pdf / generate_pptx.\n"
+    "   - You have NOT created a file unless you actually called the tool THIS turn. NEVER say a\n"
+    "     report/PDF/PPTX was made, written, generated, or saved unless you called generate_pdf or\n"
+    "     generate_pptx in this turn.\n"
     "\n"
     "6. ACKNOWLEDGMENT RULE — if the user just says something for pleasantries:\n"
     "   Reply directly with NO tools, NO new report.\n"
@@ -197,7 +205,7 @@ def handle_query(session_id: str, query: str, video_path: str | None):
         
         # check if tools called by LLM is in scope
         if tool_name not in _TOOLS:
-            yield _event(response=f"(LLM tried to call unknown tool '{tool_name}'.)")
+            yield _event(response=f"Tool call failed: tool '{tool_name}' not found. Please try again.")
             return
 
         # if the tools needs file path, add it to argument dict
