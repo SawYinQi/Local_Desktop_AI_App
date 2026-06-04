@@ -13,7 +13,7 @@
 
 ## Local Desktop AI
 
-A fully local and offline desktop application for analyzing and querying short video files. Select a video, then ask in natural language, the app transcribes speech, analyzes the visuals, and generates PDF/PowerPoint reports. Built with React + Tauri (frontend) talking to a Python backend over gRPC, where multiple agents communicate with MCP servers. Inference runs locally via Hugging Face Transformers (Apple Silicon / MPS) or OpenVINO (Intel).
+A fully local and offline desktop application for analyzing and querying short video files. Select a video, then ask in natural language, the app transcribes speech, analyzes the visuals, and generates PDF/PowerPoint reports. Built with React + Tauri (frontend) talking to a Python backend over gRPC, where multiple agents communicate with MCP servers. Inference runs locally via Hugging Face Transformers (Others), OpenVINO (Intel), MLX(Apple Silicon).
 
 ## Architecture
 ![alt text](img/diagram.drawio.png)
@@ -37,7 +37,7 @@ A fully local and offline desktop application for analyzing and querying short v
 
 -  **Local** - no cloud, no public MCP servers
 
--  **Dual backend runtime** - OpenVINO on Intel hardware, HuggingFace Transformers on Apple Silicon / CUDA / CPU
+-  **Trio-backend runtime** - OpenVINO on Intel hardware, HuggingFace Transformers(Others), and MLX on Apple Silicon
 
 ## Prerequisites
 
@@ -58,7 +58,6 @@ A fully local and offline desktop application for analyzing and querying short v
 
 -  **RAM**: 16 GB minimum, 32 GB recommended for 7B models
 
-> Tested on macOS 14 (Apple M2, 16 GB) with Python 3.11, Node 22, and Rust 1.84.
 
 ## Setup
 
@@ -84,24 +83,32 @@ brew  install  ffmpeg  # macOS
 ### 2. Download the local models
 Place models under `backend/models/`.
 
-**Non-Intel** 
+**Others(CUDA/CPU)** 
 
 ```bash
 cd  backend
 pip install huggingface_hub #if !already
-huggingface-cli  download  Qwen/Qwen2.5-3B-Instruct  --local-dir  models/qwen2.5-3b-instruct
-huggingface-cli  download  Qwen/Qwen2.5-VL-3B-Instruct  --local-dir  models/qwen2.5-vl-3b
-huggingface-cli  download  openai/whisper-base  --local-dir  models/whisper-base
+hf  download  Qwen/Qwen2.5-3B-Instruct  --local-dir  models/qwen2.5-3b-instruct
+hf  download  Qwen/Qwen2.5-VL-3B-Instruct  --local-dir  models/qwen2.5-vl-3b
+hf  download  openai/whisper-base  --local-dir  models/whisper-base
+```
+**Apple Silicon**
+```bash
+# 
+cd backend
+hf download mlx-community/Qwen2.5-3B-Instruct-4bit    --local-dir models/qwen2.5-3b-instruct-mlx-4bit
+hf download mlx-community/Qwen2.5-VL-3B-Instruct-4bit --local-dir models/qwen2.5-vl-3b-mlx-4bit
+hf download mlx-community/whisper-base-mlx-4bit       --local-dir models/whisper-base-mlx-4bit
 ```
 
 **Intel hosts** use the OpenVINO runtime with int4/int8 models:
 ```bash
-# If too slow switch to 3B version
+# If too slow switch to 3B version 
 cd  backend
 
-huggingface-cli download OpenVINO/Qwen2.5-3B-Instruct-int4-ov --local-dir models/qwen2.5-7b-int4
-huggingface-cli download OpenVINO/Qwen2.5-VL-3B-Instruct-int4-ov --local-dir models/qwen2.5-vl-7b-int4
-huggingface-cli  download  OpenVINO/whisper-base-int8-ov  --local-dir  models/whisper-base-int8-ov
+hf download OpenVINO/Qwen2.5-3B-Instruct-int4-ov --local-dir models/qwen2.5-7b-int4
+hf download OpenVINO/Qwen2.5-VL-3B-Instruct-int4-ov --local-dir models/qwen2.5-vl-7b-int4
+hf  download  OpenVINO/whisper-base-int8-ov  --local-dir  models/whisper-base-int8-ov
 ```
 
 If the OpenVINO repos aren't available, convert from the base models yourself:
@@ -233,7 +240,7 @@ over Streamable HTTP on localhost, auto-spawned at startup when orchestrator cal
 
 -  **Persistent chat history** - stored in `localStorage`, survives app restarts.
 
--  **Dual-backend runtime** - Supports both Hugging Face/MPS (Apple Silicon) and OpenVINO int4 (Intel).
+-  **Trio-backend runtime** - Supports Hugging Face/MPS (Others), OpenVINO int4 (Intel), and MLX (Apple Silicon)
   
 
 ### What doesn't work well 
@@ -260,7 +267,8 @@ Almost all problems encountered during testing are due to **the local LLM being 
 
 - **Small-model unpredictability** - The bulk of the effort went into making an unreliable model behave consistently - through prompt scaffolding and code-level guardrails.
 
--  **Apple Silicon constraints** - OpenVINO is CPU-only on Macs (no Metal), and `bitsandbytes` 4-bit is CUDA-only, so the Apple Silicon path is fixed to Hugging Face + MPS in fp16, which caps the practical model size at 3B.
+-  **Requiremnt constraint** - My computer uses Apple M2 chip which does not run well with OpenVINO, and the test requirement states that "All AI inference must run locally, using OpenVINO-optimized or Hugging Face
+models". Using Metal's MPS device mitigates this constartint but still somewhat slow.
 
 
 ### Potential improvements with more time

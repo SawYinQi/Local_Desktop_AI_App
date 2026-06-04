@@ -5,7 +5,7 @@ import agent_pb2
 import agent_pb2_grpc
 import orchestrator
 
-# In-memory store for session video paths. Key: session_id, Value: file_path
+# In-memory dict, store session video paths. Key: session_id, Value: file_path
 session_videos = {}
 
 """
@@ -14,6 +14,7 @@ Overrides placeholder in parent class with Upload/Query Logic
 """
 class AgentService(agent_pb2_grpc.AgentServiceServicer):
 
+    # gRPC method for uploading video path associated with a session ID
     def UploadVideo(self, request, context):
         # log session id + file_path
         print(f"UploadVideo: session={request.session_id} path={request.file_path}")
@@ -24,7 +25,7 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
             message=f"Received video at {request.file_path}", # status msg
         )
 
-    
+    # gRPC method for handling queries. Streams responses back to client as they come in from the orchestrator.
     def SendQuery(self, request, context):
         session = request.session_id
         query = request.query

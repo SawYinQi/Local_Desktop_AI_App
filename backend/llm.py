@@ -4,31 +4,23 @@ from pathlib import Path
 
 from json_repair import repair_json
 
-from utils.runtime import pick_backend
+from utils.runtime import pick_backend, has_ov_model, has_mlx_model, has_hf_model
 
-# Model path for OpenVINO(intel) and Hugging Face(Mac/non-intel). 
+# Model paths per backend: OpenVINO (Intel), MLX (Apple Silicon), Hugging Face (other).
 OV_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-7b-int4"
+MLX_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct-mlx-4bit"
 HF_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct"
-
-# check if OpenVINO model exist at the given path
-def _has_ov_model(p: Path) -> bool:
-    return (p / "openvino_model.bin").exists()
-
-# check if Hugging Face model exist at the given path 
-def _has_hf_model(p: Path) -> bool:
-    return (p / "config.json").exists() and not _has_ov_model(p)
 
 
 BACKEND = pick_backend() 
 
 print(f"LLM: host = {platform.system()}/{platform.machine()}, backend = {BACKEND}")
 
-
 # OpenVINO
 if BACKEND == "openvino":
     MODEL_PATH = OV_MODEL_PATH
     # check model availability and raise error if not found, before loading.
-    if not _has_ov_model(MODEL_PATH):
+    if not has_ov_model(MODEL_PATH):
         raise RuntimeError(f"No OpenVINO model available at {MODEL_PATH}")
     
     from optimum.intel.openvino import OVModelForCausalLM
@@ -38,11 +30,25 @@ if BACKEND == "openvino":
     _model = OVModelForCausalLM.from_pretrained(str(MODEL_PATH), device="GPU") # load the OpenVINO-optimized model
     _tokenizer = AutoTokenizer.from_pretrained(str(MODEL_PATH)) # load the tokeniser
 
+
+# MLX Apple's native Metal framework
+elif BACKEND == "mlx":
+    MODEL_PATH = MLX_MODEL_PATH
+    # check model availability and raise error if not found, before loading.
+    if not has_mlx_model(MODEL_PATH):
+        raise RuntimeError(f"No MLX model available at {MODEL_PATH}")
+
+    from mlx_lm import load
+    from mlx_lm import generate as _mlx_generate
+
+    print(f"LLM: loading {MODEL_PATH} ...")
+    _model, _tokenizer = load(str(MODEL_PATH))
+
 # Hugging Face Transformers
 else:  
     MODEL_PATH = HF_MODEL_PATH
     # check model availability and raise error if not found, before loading.
-    if not _has_hf_model(MODEL_PATH):
+    if not has_hf_model(MODEL_PATH):
         raise RuntimeError(f"No Hugging Face model available at {MODEL_PATH}")
     
     import torch
@@ -80,24 +86,37 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
         tokenize=False
     )
 
-    # tokenizer converts the prompt into input tensors for the model
-    inputs = _tokenizer(prompt, return_tensors="pt")
+    # MLX
+    if BACKEND == "mlx":
+        # MLX library bundles whole pipline into one call
+        text = _mlx_generate(
+            _model,
+            _tokenizer,
+            prompt=prompt,
+            max_tokens=max_new_tokens,
+            verbose=False,
+        ).strip()
 
-    # if using Hugging Face, move the inputs to the same device as the model (e.g. GPU) for faster inference
-    if BACKEND == "transformers":
-        inputs = inputs.to(_model.device) 
-    
-    # call the model to generate output token ids
-    output_ids = _model.generate(
-        **inputs, # unpack the tokenized prompt as model inputs
-        max_new_tokens=max_new_tokens,
-        do_sample=False, # use greedy decoding 
-        pad_token_id=_tokenizer.eos_token_id  # set what to use for padding
-    )
+    # OpenVINO / Hugging Face Transformers 
+    else:
+        # tokenizer converts the prompt into input tensors for the model
+        inputs = _tokenizer(prompt, return_tensors="pt")
 
-    # decode only the newly generated tokens to get the model's response as text
-    new_tokens = output_ids[0][inputs["input_ids"].shape[1]:] # only take the output tokens 
-    text = _tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        # if using Hugging Face, move the inputs to the same device as the model (e.g. GPU) for faster inference
+        if BACKEND == "transformers":
+            inputs = inputs.to(_model.device)
+
+        # call the model to generate output token ids
+        output_ids = _model.generate(
+            **inputs, # unpack the tokenized prompt as model inputs
+            max_new_tokens=max_new_tokens,
+            do_sample=False, # use greedy decoding
+            pad_token_id=_tokenizer.eos_token_id  # set what to use for padding
+        )
+
+        # decode only the newly generated tokens to get the model's response as text
+        new_tokens = output_ids[0][inputs["input_ids"].shape[1]:] # only take the output tokens
+        text = _tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
     # Look for a tool call marked by <tool_call>. Take the JSON after the marker, up to the
     # closing tag if present, otherwise to the end (the model sometimes truncates the tag).

@@ -4,10 +4,9 @@
 #   pip install -r requirements.txt
 torch==2.12.0
 torchvision==0.27.0
-transformers==4.57.6
 accelerate==1.13.0
 numpy==2.4.6
-json-repair==0.59.10 
+json-repair==0.59.10
 opencv-python==4.13.0.92
 pillow==12.2.0
 librosa==0.11.0
@@ -18,6 +17,13 @@ grpcio-tools==1.80.0
 protobuf==6.33.6
 reportlab==4.5.1
 python-pptx==1.0.2
-optimum==2.1.0
-optimum-intel==1.27.0
-openvino==2026.2.0
+# Apple Silicon uses mlx-lm, which requires transformers>=5
+# Intel uses optimum-intel, which requires transformers<4.58
+transformers==4.57.6; platform_machine in "x86_64 AMD64"
+transformers>=5.0.0; platform_machine not in "x86_64 AMD64"
+mlx-lm==0.31.3; sys_platform == "darwin" and platform_machine == "arm64"
+mlx-vlm==0.6.1; sys_platform == "darwin" and platform_machine == "arm64"
+mlx-whisper==0.4.3; sys_platform == "darwin" and platform_machine == "arm64"
+optimum==2.1.0; platform_machine in "x86_64 AMD64"
+optimum-intel==1.27.0; platform_machine in "x86_64 AMD64"
+openvino==2026.2.0; platform_machine in "x86_64 AMD64"

@@ -6,10 +6,11 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from utils.runtime import pick_backend
+from utils.runtime import pick_backend, has_ov_model, has_mlx_model, has_hf_model
 
 OV_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-7b-int4"   # OpenVINO (Intel)
-HF_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-3b"        # HF (Mac / other)
+HF_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-3b"        # HF (Others)
+MLX_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-3b-mlx-4bit" # MLX (Apple Silicon)
 
 
 NUM_FRAMES = 6 # number of frames to sample
@@ -18,29 +19,42 @@ MAX_NEW_TOKENS = 512 # max new tokens to generate in response
 
 _model = None
 _processor = None
+_config = None
 _BACKEND = None
 
 # Lazy load the model and processor when the tool is first called
 def _ensure_loaded():
-    global _model, _processor, _BACKEND
+    global _model, _processor, _config, _BACKEND
 
     if _model is not None:
         return
 
     backend = pick_backend()
-  
-    if backend == "openvino" and not OV_MODEL_PATH.exists():
-        backend = "transformers"
 
     if backend == "openvino":
+        if not has_ov_model(OV_MODEL_PATH):
+            raise RuntimeError(f"No OpenVINO model available at {OV_MODEL_PATH}")
         from optimum.intel.openvino import OVModelForVisualCausalLM
         from transformers import AutoProcessor
         _model = OVModelForVisualCausalLM.from_pretrained(str(OV_MODEL_PATH), device="GPU") # load the OpenVINO-optimized model
         _processor = AutoProcessor.from_pretrained(str(OV_MODEL_PATH))
 
+    elif backend == "mlx":
+        if not has_mlx_model(MLX_MODEL_PATH):
+            raise RuntimeError(f"No MLX model available at {MLX_MODEL_PATH}")
+        
+        from mlx_vlm import load
+        from mlx_vlm.utils import load_config
+        _model, _processor = load(str(MLX_MODEL_PATH))
+        _config = load_config(str(MLX_MODEL_PATH))   # needed by apply_chat_template
+
     else:
+        if not has_hf_model(HF_MODEL_PATH):
+            raise RuntimeError(f"No Hugging Face model available at {HF_MODEL_PATH}")
+
         import torch
         from transformers import AutoModelForImageTextToText, AutoProcessor
+
         _model = AutoModelForImageTextToText.from_pretrained(
             str(HF_MODEL_PATH),
             dtype=torch.float16
@@ -93,9 +107,24 @@ def analyze(query: str, file_path: str) -> str:
     _ensure_loaded() 
 
     frames = _sample_frames(file_path) 
+    
     if not frames:
         return "Could not extract any frames from the video."
 
+    if _BACKEND == "mlx":
+        from mlx_vlm import generate as mlx_generate
+        from mlx_vlm.prompt_utils import apply_chat_template
+
+        prompt = apply_chat_template(_processor, _config, query, num_images=len(frames))
+        result = mlx_generate(
+            _model, _processor, prompt,
+            video=None,
+            image=frames, # images are passed via the video input for MLX
+            max_tokens=MAX_NEW_TOKENS,
+            verbose=False,
+        )
+        return result.text.strip()
+    
     # Initilaize message with the user query and the sampled frames
     messages = [{
         "role": "user",
