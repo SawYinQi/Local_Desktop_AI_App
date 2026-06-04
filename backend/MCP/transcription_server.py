@@ -7,9 +7,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from mcp.server.fastmcp import FastMCP
+from MCP import HOST, PORTS
 from agents.transcription_agent import transcribe
 
-mcp = FastMCP("transcription") # instantiate the MCP server 
+# instantiate the MCP server, bound to its local Streamable HTTP port
+mcp = FastMCP("transcription", host=HOST, port=PORTS["transcription"])
 
 # define the tool that the MCP server will expose.
 @mcp.tool()
@@ -21,4 +23,4 @@ def transcribe_video(file_path: str) -> str:
     return transcribe(file_path)
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="streamable-http")

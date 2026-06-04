@@ -35,7 +35,7 @@ if BACKEND == "openvino":
     from transformers import AutoTokenizer
     
     print(f"LLM: loading {MODEL_PATH} ...")
-    _model = OVModelForCausalLM.from_pretrained(str(MODEL_PATH)) # load the OpenVINO-optimized model
+    _model = OVModelForCausalLM.from_pretrained(str(MODEL_PATH), device="GPU") # load the OpenVINO-optimized model
     _tokenizer = AutoTokenizer.from_pretrained(str(MODEL_PATH)) # load the tokeniser
 
 # Hugging Face Transformers

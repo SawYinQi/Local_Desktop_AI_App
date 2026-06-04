@@ -154,7 +154,7 @@ local_desktop_AI_app/
 │   ├── server.py # gRPC server entry point
 │   ├── orchestrator.py # ReAct loop + system prompt
 │   ├── llm.py # Qwen2.5 LLM
-│   ├── mcp_client.py # MCP client; spawns MCP server subprocesses per call
+│   ├── mcp_client.py # MCP client; launches the MCP HTTP servers + connects over Streamable HTTP
 │   ├── client.py # gRPC test client
 │   ├── models/ # Downloaded model weights 
 │   │
@@ -166,7 +166,8 @@ local_desktop_AI_app/
 │   │   ├── vision_agent.py # Qwen2.5-VL frame→text
 │   │   └── generation_agent.py # ReportLab/python-pptx file rendering
 │   │
-│   ├── MCP/ # FastMCP server wrappers
+│   ├── MCP/ # FastMCP servers (Streamable HTTP, one local port each)
+│   │   ├── __init__.py # shared HOST/PORTS config + server_url()
 │   │   ├── transcription_server.py
 │   │   ├── vision_server.py
 │   │   └── generation_server.py
@@ -217,7 +218,7 @@ A summary of what works, what doesn't, the challenges encountered, and what coul
   to the right agent(s) → answer back in chat.
 
 - **MCP servers.** Three FastMCP servers (transcription, vision, generation)
-  over stdio - orchestrator calls tools through MCP client; no direct import of agents.
+over Streamable HTTP on localhost, auto-spawned at startup when orchestrator calls`list_all_tools` via MCP client.
 
 - **gRPC - Tauri bridge.** React `invoke()` → Rust `tonic` client → Backend gRPC server,
   responses streamed back.
@@ -247,13 +248,15 @@ Almost all problems encountered during testing are due to **the local LLM being 
 
 -  **Vision accuracy** - The VLM occasionally mislabels objects/graphs, because frames are downscaled and only a few are sampled to fit memory. Additionally longer videos means sparser visual coverage due to budget fixed frame sampling; currently set at 6 frames which is fine for 1 minute videos.
 
--  **Performance** - Report generation is slow, each tool call spawns a fresh MCP subprocess that reloads its model from disk, this adds up when chaining tool calls.
+-  **Performance** - Local MCP server stay open at startup but each MCP client request still need to establish a fresh client connection each time the tool is called, which can add up when chaining tool calls. 
 
 -  **Backend session memory** - `localStorage` persists chat history only for display; app restart will wipe backend memory clean. 
 
 ### Challenges encountered
 
--  **Bridging synchronous gRPC with asynchronous MCP** - MCP's client API is `async`; gRPC handlers are sync. Wrapped each tool call in `asyncio.run()` to bridge the two; but subprocesses need to be respawned each time.
+-  **Bridging synchronous gRPC with asynchronous MCP** - MCP's client API is `async`; gRPC handlers are sync. Each tool call is wrapped in `asyncio.run()` to bridge the two.
+
+-  **Cross-platform MCP transport** - Initially used stdio transport spawned a subprocess per call, and transporting subprocess through asyncio uses a different event loop on Windows. Switched the MCP servers to streamable HTTP over localhost, so the client talks over sockets (no more subprocess in asyncio loop).
 
 - **Small-model unpredictability** - The bulk of the effort went into making an unreliable model behave consistently - through prompt scaffolding and code-level guardrails.
 
@@ -274,7 +277,7 @@ Almost all problems encountered during testing are due to **the local LLM being 
 
 - **Speed** - Parallel tool-calls and reuse the KV-cache across turns not just within a single prompt.
 
-- **Persistent MCP connection pool** - Each tool call currently spawns a fresh MCP server subprocess that re-loads its model from disk. A background-thread `asyncio` loop holding stdio sessions open across calls reduce overheads.
+- **Persistent MCP sessions** - Currently the MCP servers stay open at start up, but each tool call still opens and tears down a fresh session. A background-thread `asyncio` loop holding one session per server open across calls would remove reduce the overhead.
 
 - **Bonus** - a C# launcher driving a PyInstaller packaged backend.
 

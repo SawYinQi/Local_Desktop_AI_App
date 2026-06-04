@@ -7,9 +7,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from mcp.server.fastmcp import FastMCP
+from MCP import HOST, PORTS
 from agents.vision_agent import analyze
 
-mcp = FastMCP("vision")  # instantiate the MCP server
+# instantiate the MCP server, bound to its local Streamable HTTP port
+mcp = FastMCP("vision", host=HOST, port=PORTS["vision"])
 
 
 # Tool exposed to the orchestrator via MCP.
@@ -24,4 +26,4 @@ def analyze_video(file_path: str, query: str) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="streamable-http")

@@ -35,7 +35,7 @@ def _ensure_loaded():
     if backend == "openvino":
         from optimum.intel.openvino import OVModelForVisualCausalLM
         from transformers import AutoProcessor
-        _model = OVModelForVisualCausalLM.from_pretrained(str(OV_MODEL_PATH))
+        _model = OVModelForVisualCausalLM.from_pretrained(str(OV_MODEL_PATH), device="GPU") # load the OpenVINO-optimized model
         _processor = AutoProcessor.from_pretrained(str(OV_MODEL_PATH))
 
     else:

@@ -7,9 +7,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from mcp.server.fastmcp import FastMCP
+from MCP import HOST, PORTS
 from agents.generation_agent import make_pdf, make_pptx
 
-mcp = FastMCP("generation")
+# instantiate the MCP server, bound to its local Streamable HTTP port
+mcp = FastMCP("generation", host=HOST, port=PORTS["generation"])
 
 
 @mcp.tool()
@@ -50,4 +52,4 @@ def generate_pptx(title: str, sections: list[dict]) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="streamable-http")

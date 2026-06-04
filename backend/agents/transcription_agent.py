@@ -32,7 +32,7 @@ def _ensure_loaded():
         from optimum.intel.openvino import OVModelForSpeechSeq2Seq
         from transformers import AutoProcessor
 
-        model = OVModelForSpeechSeq2Seq.from_pretrained(str(OV_MODEL_PATH))
+        model = OVModelForSpeechSeq2Seq.from_pretrained(str(OV_MODEL_PATH),device="GPU") # load the OpenVINO-optimized model
         processor = AutoProcessor.from_pretrained(str(OV_MODEL_PATH))
 
     # load Hugging Face model 
