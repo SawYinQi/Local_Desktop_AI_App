@@ -82,6 +82,18 @@ async def _call_tool_async(server_name: str, tool_name: str, arguments: dict) ->
 def call_tool(server_name: str, tool_name: str, arguments: dict) -> str:
     return asyncio.run(_call_tool_async(server_name, tool_name, arguments))
 
+async def _call_tools_async(req: list) -> list:
+    # unpack all results from called tools from req
+    return await asyncio.gather(
+        *(_call_tool_async(s, n, a) for (s, n, a) in req),
+        return_exceptions=True
+    )
+ 
+def call_tools_parallel(req: list) -> list:
+    if not req:
+        return []
+    return asyncio.run(_call_tools_async(req))
+
 
 # Async helper function to list tools from an MCP server and return them as a list
 async def _list_tools_async(server_name: str) -> list:

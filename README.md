@@ -216,18 +216,18 @@ local_desktop_AI_app/
 A summary of what works, what doesn't, the challenges encountered, and what could be improved with more time.
 
 ### What works
-- **Agentic orchestration (ReAct loop).** The orchestrator asks the LLM which tools to use,
+- **Agentic orchestration (ReAct loop)** - The orchestrator asks the LLM which tools to use,
   runs them, feeds results back, and chains multiple agents when a query needs it.
 
 - **Human-in-the-loop clarification** - System Prompted to always clarify on ambiguous queries
 
-- **End-to-end local pipeline.** Select a video → natural-language query → the LLM routes
+- **End-to-end local pipeline.** - Select a video → natural-language query → the LLM routes
   to the right agent(s) → answer back in chat.
 
-- **MCP servers.** Three FastMCP servers (transcription, vision, generation)
+- **MCP servers** - Three FastMCP servers (transcription, vision, generation)
 over Streamable HTTP on localhost, auto-spawned at startup when orchestrator calls`list_all_tools` via MCP client.
 
-- **gRPC - Tauri bridge.** React `invoke()` → Rust `tonic` client → Backend gRPC server,
+- **gRPC - Tauri bridge** - React `invoke()` → Rust `tonic` client → Backend gRPC server,
   responses streamed back.
 
 - **Tool-schema discovery** - orchestrator dynamically discovers tool schemas from MCP servers via `list_all_tools` at startup via MCP client.
@@ -283,7 +283,7 @@ models". Using Metal's MPS device mitigates this constartint but still somewhat 
 
 - **Confidence-gated human in the loop** - trigger clarification on measured low-confidence routing and resume the suspended task, rather than relying on the model to ask.
 
-- **Speed** - Parallel tool-calls and reuse the KV-cache across turns not just within a single prompt.
+- **Speed** - reuse the KV-cache across turns not just within a single prompt.
 
 - **Persistent MCP sessions** - Currently the MCP servers stay open at start up, but each tool call still opens and tears down a fresh session. A background-thread `asyncio` loop holding one session per server open across calls would remove reduce the overhead.
 

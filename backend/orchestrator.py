@@ -174,6 +174,7 @@ def handle_query(session_id: str, query: str, video_path: str | None):
     # Iterate up to MAX_ITERATIONS times, calling the LLM and tools as needed
     # until we get a final text response or hit the max iteration limit
     for _ in range(MAX_ITERATIONS):
+        
         # get result from querying the LLM with msg and tools schemas
         result = llm.chat(messages, tools=tools)
 
@@ -192,52 +193,70 @@ def handle_query(session_id: str, query: str, video_path: str | None):
             ]
 
             # A clarification reply carries no artifact; a normal answer may include a generated file.
-            if is_clarify:
-                yield _event(response=reply)
-            else:
-                yield _event(response=reply, artifact_path=last_artifact_path)
+            yield _event(response=reply, artifact_path="" if is_clarify else last_artifact_path)
             return
 
-        # otherwise the LLM still needs tools
-        tool_name = result["name"]
-        raw_args = result.get("arguments")
-        args = dict(raw_args) if isinstance(raw_args, dict) else {} # ensure args is a dict
-        
-        # check if tools called by LLM is in scope
-        if tool_name not in _TOOLS:
-            yield _event(response=f"Tool call failed: tool '{tool_name}' not found. Please try again.")
-            return
+        # gets the list of JSON payload from tool_calls
+        calls = result["calls"]
 
-        # if the tools needs file path, add it to argument dict
-        if tool_name in NEEDS_FILE_PATH_INJECTION:
-            if not video_path:
-                yield _event(response="No video uploaded yet. Please upload a video first.")
-                return
-            args["file_path"] = video_path
-        
+        resolved = []  # (server, tool_name, raw_args, header, error)
 
-        server_name = _TOOLS[tool_name]["server"]
-        tool_result = mcp_client.call_tool(server_name, tool_name, args)
+        # Validate calls
+        for call in calls:
 
-        if tool_name in GENERATION_TOOLS:
-            last_artifact_path = tool_result.strip()
+            tool_name = call["name"]
+            raw_args = call.get("arguments")
+            args = dict(raw_args) if isinstance(raw_args, dict) else {}
 
-        header = TOOL_HEADERS.get(tool_name, tool_name.upper())
+            # check tool exist
+            if tool_name not in _TOOLS:
+                resolved.append((None, tool_name, args, "ERROR", f"Tool call failed: tool '{tool_name}' not found. Please try again."))
+                continue
 
-        # append LLM tool calls and tool results to message as context for next LLM query
+            # check tool need video file path and if video file path provided
+            if tool_name in NEEDS_FILE_PATH_INJECTION:
+                if not video_path:
+                    resolved.append((None, tool_name, args, "ERROR", "No video uploaded yet. Please upload a video first."))
+                    continue
+                args["file_path"] = video_path
+
+            resolved.append((_TOOLS[tool_name]["server"], tool_name, args, TOOL_HEADERS.get(tool_name, tool_name.upper()), None))
+            
+        # append tool calls context to message 
         messages.append({
             "role": "assistant",
             "content": "",
-            "tool_calls": [{
-                "type": "function",
-                "function": {"name": tool_name, "arguments": json.dumps(args)},
-            }],
-        })
-        messages.append({
-            "role": "tool",
-            "name": tool_name,
-            "content": f"[{header}]\n{tool_result}"
+            "tool_calls": [
+                {"type": "function", "function": {"name": n, "arguments": json.dumps(a)}}
+                for (_, n, a, _, _) in resolved
+            ]
         })
 
-    # notify client of iteration limit
-    yield _event(response="(Something went wrong please try again.)")
+        # call all the listed tools in resolved that has no errors
+        req = [(s, n, a) for (s, n, a, _, e) in resolved if e is None]
+        outputs = iter(mcp_client.call_tools_parallel(req))
+
+        # collect results 
+        for (_, n, _, h, e) in resolved:
+            # validation error
+            if e is not None:
+                content = f"[{h}]\n{e}"
+            else:
+                out = next(outputs)
+                # executed calls raised errors
+                if isinstance(out, Exception):
+                    content = f"[{h}]\nERROR: {out}"
+                elif n in GENERATION_TOOLS:
+                    last_artifact_path = out.strip()          
+                    content = (f"The requested file was created and saved to:\n{out.strip()}\n"
+                               "Tell the user it's ready and give them this path. "
+                               "Do NOT paste or restate the content.")
+                # success,set results in contents
+                else:
+                    content = f"[{h}]\n{out}"
+
+            # append append tool call result context
+            messages.append({"role": "tool", "name": n, "content": content})
+
+    
+    yield _event(response="Something went wrong please try again.")

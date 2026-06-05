@@ -118,34 +118,49 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
         new_tokens = output_ids[0][inputs["input_ids"].shape[1]:] # only take the output tokens
         text = _tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
-    # Look for a tool call marked by <tool_call>. Take the JSON after the marker, up to the
-    # closing tag if present, otherwise to the end (the model sometimes truncates the tag).
-    start = text.find("<tool_call>")
-    if start != -1:
-        after = text[start + len("<tool_call>"):]
-        end = after.find("</tool_call>")
-        payload = (after[:end] if end != -1 else after).strip()
 
-        # Parse the JSON. A 3B frequently emits slightly malformed JSON on long tool calls
-        # (e.g. a missing closing ']' on a big report), which would otherwise leak to the user
-        # and silently drop the call. Try strict parsing first, then fall back to json-repair,
-        # which fixes common LLM JSON mistakes so the tool still runs.
+    calls = [] # to store any parsed tool calls from the generated text
+    saw_tag = "<tool_call>" in text  
+    i = text.find("<tool_call>") # find the first occurrence of the tool call tag in the generated text
+
+    while i != -1:
+        # JSON payload between <tool_call> and </tool_call> tags
+        # extract the text after the <tool_call> tag
+        after = text[i + len("<tool_call>"):] 
+        # finds list of index close and open tags
+        stops = [p for p in (after.find("</tool_call>"), after.find("<tool_call>")) if p != -1]
+        # cut the payload at whichever comes first, the closing tag or the next
+        # opening tag so a missing </tool_call> won't include the next tool_call lines
+        payload = (after[:min(stops)] if stops else after).strip()
+
         call = None
+
         try:
-            call = json.loads(payload)
+            call = json.loads(payload) # try to parse the payload for the tool call
         except json.JSONDecodeError:
             try:
-                call = repair_json(payload, return_objects=True)
+                call = repair_json(payload, return_objects=True) # try to repair the JSON if it's malformed
             except Exception:
                 call = None
 
+        # check if the parsed call is a dict with a "name" key before adding to calls
         if isinstance(call, dict) and "name" in call:
-            return {"type": "tool_call", "name": call["name"], "arguments": call.get("arguments", {})}
-        else:
-            return {"type": "text", "content": f"failed to parse tool call JSON, please try again."}
+            calls.append({"name": call["name"], "arguments": call.get("arguments", {})})
+
+        # look for the next <tool_call> tag in the text to continue parsing for more tool calls 
+        i = text.find("<tool_call>", i + len("<tool_call>"))
+
+    # returns the list tool call dicts
+    if calls:
+        return {"type": "tool_calls", "calls": calls}
+    
+    # if tool call format is malformed
+    if saw_tag:
+        return {"type": "text", "content": "failed to parse tool call JSON, please try again."}
 
     # no (parseable) tool call found — return the generated text as the response
     return {"type": "text", "content": text}
+
 
 
 
