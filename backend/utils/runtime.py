@@ -23,7 +23,7 @@ def pick_backend() -> str:
     
 # check if OpenVINO model exist at the given path
 def has_ov_model(p: Path) -> bool:
-    return (p / "openvino_model.bin").exists()
+    return (p / "openvino_model.bin").exists() and (p / "openvino_encoder_model.bin").exists()
 
 # check if an MLX model exists at the given path. MLX weights are .safetensors (LLM/VLM)
 # or .npz (whisper); both ship a config.json alongside.
