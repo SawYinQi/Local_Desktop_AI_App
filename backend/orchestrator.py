@@ -87,6 +87,9 @@ SYSTEM_PROMPT = (
     "     add sections 'later' — generate the COMPLETE deck/report in a single call.\n"
     "   - Do NOT make one section per tool. NEVER use 'Visual Analysis' or 'Audio Transcript'\n"
     "     as section headings, and NEVER paste raw tool output.\n"
+    "   - NEVER write placeholder tokens like '{{...}}', '[INSERT ...]', or variable names\n"
+    "     (e.g. '{{analyze_video_results}}'). Write the ACTUAL content from the tool results.\n"
+    "     If you don't have the content yet, call the gather tool FIRST and wait for its result.\n"
     "   - COMBINE the visual findings and the transcript, then reorganize into meaningful,\n"
     "     TOPIC-based sections that fit the request — e.g. 'People', 'Product', 'Key Claims', 'Summary'.\n"
     "   - Write each section in your own words as a synthesis of BOTH sources (2-3 sentences).\n"
@@ -138,6 +141,7 @@ def handle_query(session_id: str, query: str, video_path: str | None):
     print(f"Orchestrator: session={session_id} query={query!r} video_path={video_path}")
 
     last_artifact_path = "" # keep track of last generated artifact (e.g. PDF) to include in response events
+    generated_formats: set = set()  # generation tools already run THIS query (prevents duplicate files)
     prior = _session_history.get(session_id, [])
 
     # Initialize the message history with the system prompt and the user's query
@@ -221,8 +225,36 @@ def handle_query(session_id: str, query: str, video_path: str | None):
                 args["file_path"] = video_path
 
             resolved.append((_TOOLS[tool_name]["server"], tool_name, args, TOOL_HEADERS.get(tool_name, tool_name.upper()), None))
-            
-        # append tool calls context to message 
+
+        # Dedup generation: drop a generation tool whose format was already produced this
+        # query, or requested twice in THIS batch. Allows generate_pdf + generate_pptx
+        # together; blocks a repeated/duplicate generation (prevents double files).
+        seen_gen: set = set()
+        deduped = []
+        for (s, n, a, h, e) in resolved:
+            if n in GENERATION_TOOLS and (n in generated_formats or n in seen_gen):
+                continue
+            if n in GENERATION_TOOLS:
+                seen_gen.add(n)
+            deduped.append((s, n, a, h, e))
+        resolved = deduped
+
+        # Dependency guard: a generation tool needs the transcribe/analyze results first.
+        # If the model batched generation WITH gather tools in one response, DEFER generation
+        # — run only the gather tools this turn and feed back an instruction, so the model
+        # re-calls generation next turn with the REAL results in context (not {{placeholders}}).
+        has_gather = any(n in NEEDS_FILE_PATH_INJECTION for (_, n, _, _, _) in resolved)
+        if has_gather:
+            resolved = [
+                (s, n, a, h,
+                 "Deferred: the transcribe/analyze results are not available yet. They will be "
+                 "provided next — THEN call generate_pptx/generate_pdf with the REAL content. "
+                 "NEVER use placeholder tokens like {{...}}.")
+                if n in GENERATION_TOOLS else (s, n, a, h, e)
+                for (s, n, a, h, e) in resolved
+            ]
+
+        # append tool calls context to message
         messages.append({
             "role": "assistant",
             "content": "",
@@ -247,7 +279,8 @@ def handle_query(session_id: str, query: str, video_path: str | None):
                 if isinstance(out, Exception):
                     content = f"[{h}]\nERROR: {out}"
                 elif n in GENERATION_TOOLS:
-                    last_artifact_path = out.strip()          
+                    last_artifact_path = out.strip()
+                    generated_formats.add(n)  # mark this format as produced for the query
                     content = (f"The requested file was created and saved to:\n{out.strip()}\n"
                                "Tell the user it's ready and give them this path. "
                                "Do NOT paste or restate the content.")

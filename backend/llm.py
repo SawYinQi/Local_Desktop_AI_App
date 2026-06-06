@@ -8,7 +8,7 @@ from utils.runtime import pick_backend, has_ov_model, has_mlx_model, has_hf_mode
 
 # Model paths per backend: OpenVINO (Intel), MLX (Apple Silicon), Hugging Face (other).
 OV_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-7b-int4"
-MLX_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct-mlx-4bit"
+MLX_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct-mlx-8bit"
 HF_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct"
 
 
@@ -96,8 +96,9 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
             max_tokens=max_new_tokens,
             verbose=False,
         ).strip()
+        print("RAW:" + text)
 
-    # OpenVINO / Hugging Face Transformers 
+    # OpenVINO / Hugging Face Transformers
     else:
         # tokenizer converts the prompt into input tensors for the model
         inputs = _tokenizer(prompt, return_tensors="pt")
@@ -115,9 +116,8 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
         )
 
         # decode only the newly generated tokens to get the model's response as text
-        new_tokens = output_ids[0][inputs["input_ids"].shape[1]:] # only take the output tokens
+        new_tokens = output_ids[0][inputs["input_ids"].shape[1]:] # only take the output tokens 
         text = _tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
-
 
     calls = [] # to store any parsed tool calls from the generated text
     saw_tag = "<tool_call>" in text  
@@ -157,6 +157,16 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
     # if tool call format is malformed
     if saw_tag:
         return {"type": "text", "content": "failed to parse tool call JSON, please try again."}
+
+    # Fallback: some models (e.g. OpenVINO 7B / INT4) emit the bare tool-call JSON with NO
+    # <tool_call> wrapper. If the WHOLE reply parses as a tool-call object, treat it as one.
+    try:
+        candidate = json.loads(text)
+    except json.JSONDecodeError:
+        candidate = None
+    if isinstance(candidate, dict) and "name" in candidate and "arguments" in candidate:
+        return {"type": "tool_calls",
+                "calls": [{"name": candidate["name"], "arguments": candidate.get("arguments", {})}]}
 
     # no (parseable) tool call found — return the generated text as the response
     return {"type": "text", "content": text}
