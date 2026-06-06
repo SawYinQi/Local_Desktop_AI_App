@@ -64,7 +64,7 @@ else:
 
 print("LLM: model loaded.")
 
-def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) -> dict:
+def chat(messages: list, tools: list | None = None, max_new_tokens: int = 2024) -> dict:
     """
     messages: list of {"role": "system" | "user", "content": str}
     tools: list of {"name": str, "description": str, "parameters": dict} 

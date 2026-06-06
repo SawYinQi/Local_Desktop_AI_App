@@ -23,6 +23,7 @@ SYSTEM_PROMPT = (
     "You MUST NOT call a tool that is NOT in the above list; You MUST NEVER invent tool names/calls\n" 
     "You MUST ensure your response are concise\n"
     "You MUST NOT fabricate any information you did not get from tool results\n"
+    "You MUST NOT write any preamble when calling tools, just call the tool and fill in whats requried by the tool within the <tool_call></tool_call> tags.\n"
     "The selected video's file path is supplied to the tools AUTOMATICALLY by the system.\n\n"
 
     "CLARIFICATION RULE (overrides the tool RULES below):\n"
@@ -138,7 +139,9 @@ def handle_query(session_id: str, query: str, video_path: str | None):
     print(f"Orchestrator: session={session_id} query={query!r} video_path={video_path}")
 
     last_artifact_path = "" # keep track of last generated artifact (e.g. PDF) to include in response events
-    prior = _session_history.get(session_id, [])
+    
+    # Cap history to the last 4 messages (2 turns) to prevent unbounded prompt growth
+    prior = _session_history.get(session_id, [])[-4:]
 
     # Initialize the message history with the system prompt and the user's query
     messages: list = [
