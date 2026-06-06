@@ -1,7 +1,7 @@
 import json
 import platform
 from pathlib import Path
-
+import re
 from json_repair import repair_json
 
 from utils.runtime import pick_backend, has_ov_model, has_mlx_model, has_hf_model
@@ -158,15 +158,24 @@ def chat(messages: list, tools: list | None = None, max_new_tokens: int = 3072) 
     if saw_tag:
         return {"type": "text", "content": "failed to parse tool call JSON, please try again."}
 
-    # Fallback: some models (e.g. OpenVINO 7B / INT4) emit the bare tool-call JSON with NO
-    # <tool_call> wrapper. If the WHOLE reply parses as a tool-call object, treat it as one.
-    try:
-        candidate = json.loads(text)
-    except json.JSONDecodeError:
-        candidate = None
-    if isinstance(candidate, dict) and "name" in candidate and "arguments" in candidate:
-        return {"type": "tool_calls",
-                "calls": [{"name": candidate["name"], "arguments": candidate.get("arguments", {})}]}
+    # Fallback: some models emit the bare tool-call JSON with NO
+    # <tool_call> tag
+    bare_pattern = re.compile(r'\{[^{}]*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[^}]*\}[^{}]*\}')
+    bare_matches = bare_pattern.findall(text)
+    if bare_matches:
+        calls = []
+        for m in bare_matches:
+            try:
+                obj = json.loads(m)
+            except json.JSONDecodeError:
+                try:
+                    obj = repair_json(m, return_objects=True)
+                except Exception:
+                    continue
+            if isinstance(obj, dict) and "name" in obj:
+                calls.append({"name": obj["name"], "arguments": obj.get("arguments", {})})
+        if calls:
+            return {"type": "tool_calls", "calls": calls}
 
     # no (parseable) tool call found — return the generated text as the response
     return {"type": "text", "content": text}

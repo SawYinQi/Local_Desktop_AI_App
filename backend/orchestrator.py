@@ -226,33 +226,14 @@ def handle_query(session_id: str, query: str, video_path: str | None):
 
             resolved.append((_TOOLS[tool_name]["server"], tool_name, args, TOOL_HEADERS.get(tool_name, tool_name.upper()), None))
 
-        # Dedup generation: drop a generation tool whose format was already produced this
-        # query, or requested twice in THIS batch. Allows generate_pdf + generate_pptx
-        # together; blocks a repeated/duplicate generation (prevents double files).
-        seen_gen: set = set()
-        deduped = []
-        for (s, n, a, h, e) in resolved:
-            if n in GENERATION_TOOLS and (n in generated_formats or n in seen_gen):
-                continue
-            if n in GENERATION_TOOLS:
-                seen_gen.add(n)
-            deduped.append((s, n, a, h, e))
-        resolved = deduped
-
-        # Dependency guard: a generation tool needs the transcribe/analyze results first.
-        # If the model batched generation WITH gather tools in one response, DEFER generation
-        # — run only the gather tools this turn and feed back an instruction, so the model
-        # re-calls generation next turn with the REAL results in context (not {{placeholders}}).
-        has_gather = any(n in NEEDS_FILE_PATH_INJECTION for (_, n, _, _, _) in resolved)
+        # Dependency guard: if gather tools (transcribe/analyze) are in the same batch as
+        # generation tools, silently drop generation — the LLM composed those arguments
+        # speculatively (before seeing results), so they'd contain placeholders.
+        # The gather results will feed back into context, and the LLM will naturally
+        # re-call generation next iteration with the REAL content.
+        has_gather = any(n in NEEDS_FILE_PATH_INJECTION for (_, n, _, _, e) in resolved if e is None)
         if has_gather:
-            resolved = [
-                (s, n, a, h,
-                 "Deferred: the transcribe/analyze results are not available yet. They will be "
-                 "provided next — THEN call generate_pptx/generate_pdf with the REAL content. "
-                 "NEVER use placeholder tokens like {{...}}.")
-                if n in GENERATION_TOOLS else (s, n, a, h, e)
-                for (s, n, a, h, e) in resolved
-            ]
+            resolved = [(s, n, a, h, e) for (s, n, a, h, e) in resolved if n not in GENERATION_TOOLS]
 
         # append tool calls context to message
         messages.append({
