@@ -43,7 +43,7 @@ A fully local and offline desktop application for analyzing and querying short v
 
 -  **Python 3.11**
   
--  **C++ build tools (Windows only)**
+-  **C++ build tools**
 
 -  **Node.js 18+** and npm
 
@@ -51,12 +51,7 @@ A fully local and offline desktop application for analyzing and querying short v
 
 -  **ffmpeg**
 
--  Protobuf
-
--  **Disk space**: ~25 GB for default 3B models, ~50 GB for 7B
-
-
--  **RAM**: 16 GB minimum, 32 GB recommended for 7B models
+-  **Protobuf**
 
 
 ## Setup
@@ -213,8 +208,7 @@ A summary of what works, what doesn't, the challenges encountered, and what coul
 
 - **Human-in-the-loop clarification** - System Prompted to always clarify on ambiguous queries
 
-- **End-to-end local pipeline.** - Select a video → natural-language query → the LLM routes
-  to the right agent(s) → answer back in chat.
+- **End-to-end local pipeline.** - Select a video → natural-language query → The LLM routes to the agents → Tool results return → LLM answer back to chat.
 
 - **MCP servers** - Three FastMCP servers (transcription, vision, generation)
 over Streamable HTTP on localhost, auto-spawned at startup when orchestrator calls`list_all_tools` via MCP client.
@@ -249,7 +243,7 @@ Almost all problems encountered during testing are due to **the local LLM being 
 
 -  **Performance** - Local MCP server stay open at startup but each MCP client request still need to establish a fresh client connection each time the tool is called, which can add up when chaining tool calls. 
 
--  **Backend session memory** - `localStorage` persists chat history only for display; app restart will wipe backend memory clean. 
+-  **Parallel tool calls** - Eventhough it has the capability, it does not call tools in parallel, but instead call tools sequentially.
 
 ### Challenges encountered
 
@@ -259,17 +253,10 @@ Almost all problems encountered during testing are due to **the local LLM being 
 
 - **Small-model unpredictability** - The bulk of the effort went into making an unreliable model behave consistently - through prompt scaffolding and code-level guardrails.
 
--  **Requiremnt constraint** - My computer uses Apple M2 chip which does not run well with OpenVINO, and the test requirement states that "All AI inference must run locally, using OpenVINO-optimized or Hugging Face
-models". Using Metal's MPS device mitigates this constartint but still somewhat slow.
-
 
 ### Potential improvements with more time
 
 - **Fine-tuning the LLM (LoRA)** - Train the LLM on a dataset of (`query` → `expected tool call`) examples so tool-routing reliability improves. Additionally training on specified queries related to video content extraction and PDF and PPTX generation will also remove the bulk of decision rules from `SYSTEM_PROMPT`.
-
-- **Constrained structure decoding** - (e.g. `outlines` library) to prevent invalid schema tool-call JSON, eliminating the problem with malformed argument failures.
-
--  **Separate generated artifacts / video extracted content from chat history** - Fixes the "summarize the conversation vs the video" confusion. 
 
 - **Backend memory (SQLite)** - So the LLM's conversation context survives a server restart, not just the on-screen display.
 

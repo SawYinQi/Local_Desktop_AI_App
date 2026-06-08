@@ -23,6 +23,7 @@ SYSTEM_PROMPT = (
     "You MUST NOT call a tool that is NOT in the above list; You MUST NEVER invent tool names/calls\n" 
     "You MUST ensure your response are concise\n"
     "You MUST NOT fabricate any information you did not get from tool results\n"
+    "You MUST ONLY call more than one tool in a SINGLE turn IF it is compliant TOOL DECISION RULES"
     "The selected video's file path is supplied to the tools AUTOMATICALLY by the system.\n\n"
 
     "CLARIFICATION RULE (overrides the tool RULES below):\n"
@@ -61,6 +62,8 @@ SYSTEM_PROMPT = (
     "   - 'summarize the video', 'describe the video', 'what is the video about'\n"
     "   - Any 'comprehensive', 'in-depth', or 'overview' request\n"
     "   - Queries asking about multiple aspects (e.g. 'the cast and the dialogue')\n"
+    "   - When BOTH tools are needed, you MUST emit BOTH <tool_call> blocks in a SINGLE response"
+    "   - DO NOT wait for one result before requesting the other.\n"
     "\n"
     "5. When to use generate_pdf or generate_pptx — ONLY when the user's CURRENT message explicitly contains one\n"
     "   of the format words below. If it does NOT, you MUST NOT call a generation tool and MUST NOT\n"
@@ -72,13 +75,19 @@ SYSTEM_PROMPT = (
     "     knowledge. If a format word above appears, calling the generation tool is MANDATORY: first\n"
     "     gather the content (for a conversation summary, write it yourself from history; for video\n"
     "     questions, use the tool results), then pass it into generate_pdf / generate_pptx.\n"
-    "   - You have NOT created a file unless you actually called the tool THIS turn. NEVER say a\n"
-    "     report/PDF/PPTX was made, written, generated, or saved unless you called generate_pdf or\n"
-    "     generate_pptx in this turn.\n"
+    "   - You did NOT create or save a file unless a generation tool (generate_pdf/generate_pptx) returned a path THIS turn. NEVER claim that "
+    "     ANY file — .txt, .pdf, .pptx, or anything else — was created or saved, and NEVER output or invent a file path. "
+    "     The ONLY path you may give the user is one a generation tool returned this turn.\n"
     "\n"
     "6. ACKNOWLEDGMENT RULE — if the user just says something for pleasantries:\n"
     "   Reply directly with NO tools, NO new report.\n"
     "   Even if a previous report was generated, do not re-run anything.\n"
+    "\n"
+    "7. SEQUENCE RULE: "
+    "   - call the read tools you need (transcribe_video AND/OR analyze_video) in ONE response.\n"
+    "     e.g. <tool_call>tool 1</tool_call><tool_call>tool 2</tool_call>\n"
+    "   - Wait for their results.\n" 
+    "   - ONLY THEN, in a separate turn, call generate_pdf/generate_pptx, filling sections from those results.\n"
     "\n"
     "REPORT CONTENT RULES (when filling generate_pdf / generate_pptx):\n"
     "   - Do NOT make one section per tool. NEVER use 'Visual Analysis' or 'Audio Transcript'\n"
@@ -95,7 +104,6 @@ SYSTEM_PROMPT = (
     "   - Example: for a car advert, good sections are 'Vehicle', 'Key Features', 'Scene', 'Summary'\n" 
     "   — NOT 'Visual Analysis' and 'Audio Transcript'.\n"
     "\n"
-
 )
 
 # Limit number of iteration of LLM tool call; prevent infinite loop
