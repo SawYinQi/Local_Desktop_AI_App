@@ -15,7 +15,7 @@ TOOL_HEADERS = {
 }
 
 SYSTEM_PROMPT = (
-    "You are an honest and obedient assistant for video and general knowledge.\n"
+    "You are an honest and obedient assistant for video analysis, and general knowledge.\n"
     "You have access to the following tools to extract information from the video: \n"
     "1. transcribe_video\n"
     "2. analyze_video\n"
@@ -46,11 +46,11 @@ SYSTEM_PROMPT = (
     "   CANCELLED — follow RULE 5 and you MUST call the generation tool."
     "   When in doubt → (see CLARIFICATION RULE).\n"
     "\n"
-    "2. analyze_video ONLY — for questions about VISUAL content only:\n"
+    "2. analyze_video ONLY — for questions about VISUAL content only of the VIDEO:\n"
     "   - 'what is shown', 'describe the scene', 'what objects appear'\n"
     "   - colors, graphs, charts, on-screen text, faces, settings, environments\n"
     "\n"
-    "3. transcribe_video ONLY — for AUDIO content:\n"
+    "3. transcribe_video ONLY — for AUDIO content of the VIDEO:\n"
     "   - 'transcribe' / 'transcript' ALWAYS mean VERBATIM — call transcribe_video DIRECTLY, no clarification.\n"
     "   - Return the transcript text EXACTLY as given by the tool; do NOT summarize,\n"
     "     shorten, paraphrase, or reformat it. Transcribing is NOT summarizing.\n"
@@ -81,21 +81,18 @@ SYSTEM_PROMPT = (
     "   Even if a previous report was generated, do not re-run anything.\n"
     "\n"
     "REPORT CONTENT RULES (when filling generate_pdf / generate_pptx):\n"
-    "   - If the user lists specific sections/topics to include, you MUST create one slide/section\n"
-    "     for EVERY topic they listed (e.g. people, what it's about, video type, product name →\n"
-    "     a slide for each). Do NOT omit any, do NOT produce a partial deck, and do NOT offer to\n"
-    "     add sections 'later' — generate the COMPLETE deck/report in a single call.\n"
     "   - Do NOT make one section per tool. NEVER use 'Visual Analysis' or 'Audio Transcript'\n"
-    "     as section headings, and NEVER paste raw tool output.\n"
+    "     as section headings, and NEVER paste RAW tool output.\n"
     "   - NEVER write placeholder tokens like '{{...}}', '[INSERT ...]', or variable names\n"
-    "     (e.g. '{{analyze_video_results}}'). Write the ACTUAL content from the tool results.\n"
+    "     (e.g. '{{analyze_video_results}}'). Write the ACTUAL content from the video extracted from the tool results.\n"
     "     If you don't have the content yet, call the gather tool FIRST and wait for its result.\n"
     "   - COMBINE the visual findings and the transcript, then reorganize into meaningful,\n"
     "     TOPIC-based sections that fit the request — e.g. 'People', 'Product', 'Key Claims', 'Summary'.\n"
-    "   - Write each section in your own words as a synthesis of BOTH sources (2-3 sentences).\n"
+    "   - You MUST write each section in your own words as a synthesis of BOTH sources (2-3 sentences).\n"
     "   - If the visuals and the transcript disagree about a fact, TRUST THE TRANSCRIPT for\n"
     "     product names, brand names, and spoken claims (the visual model may guess wrong).\n"
-    "   - Example: for a car advert, good sections are 'Vehicle', 'Key Features', 'Scene', 'Summary'\n"
+    "   - Do NOT leave sections blank, say 'more analysis needed' , or leave place holders\n"
+    "   - Example: for a car advert, good sections are 'Vehicle', 'Key Features', 'Scene', 'Summary'\n" 
     "   — NOT 'Visual Analysis' and 'Audio Transcript'.\n"
     "\n"
 
@@ -141,7 +138,6 @@ def handle_query(session_id: str, query: str, video_path: str | None):
     print(f"Orchestrator: session={session_id} query={query!r} video_path={video_path}")
 
     last_artifact_path = "" # keep track of last generated artifact (e.g. PDF) to include in response events
-    generated_formats: set = set()  # generation tools already run THIS query (prevents duplicate files)
     prior = _session_history.get(session_id, [])
 
     # Initialize the message history with the system prompt and the user's query
@@ -226,9 +222,6 @@ def handle_query(session_id: str, query: str, video_path: str | None):
 
             resolved.append((_TOOLS[tool_name]["server"], tool_name, args, TOOL_HEADERS.get(tool_name, tool_name.upper()), None))
 
-        has_gather = any(n in NEEDS_FILE_PATH_INJECTION for (_, n, _, _, e) in resolved if e is None)
-        if has_gather:
-            resolved = [(s, n, a, h, e) for (s, n, a, h, e) in resolved if n not in GENERATION_TOOLS]
 
         # append tool calls context to message
         messages.append({
@@ -257,7 +250,6 @@ def handle_query(session_id: str, query: str, video_path: str | None):
                     content = f"[{h}]\nERROR: {out}"
                 elif n in GENERATION_TOOLS:
                     last_artifact_path = out.strip()
-                    generated_formats.add(n)  # mark this format as produced for the query
                     content = (f"The requested file was created and saved to:\n{out.strip()}\n"
                                "Tell the user it's ready and give them this path. "
                                "Do NOT paste or restate the content.")

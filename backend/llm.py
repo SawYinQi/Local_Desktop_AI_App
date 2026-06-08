@@ -8,7 +8,7 @@ from utils.runtime import pick_backend, has_model
 
 # Model paths per backend: OpenVINO (Intel), MLX (Apple Silicon), Hugging Face (other).
 OV_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-int4"
-MLX_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct-mlx-4bit"
+MLX_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct-mlx-8bit"
 HF_MODEL_PATH = Path(__file__).parent / "models" / "qwen2.5-3b-instruct"
 
 
