@@ -6,9 +6,9 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from utils.runtime import pick_backend, has_ov_model, has_mlx_model, has_hf_model
+from utils.runtime import pick_backend, has_model
 
-OV_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-7b-int4"   # OpenVINO (Intel)
+OV_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-3b-int4"   # OpenVINO (Intel)
 HF_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-3b"        # HF (Others)
 MLX_MODEL_PATH = BACKEND_DIR / "models" / "qwen2.5-vl-3b-mlx-4bit" # MLX (Apple Silicon)
 
@@ -32,7 +32,7 @@ def _ensure_loaded():
     backend = pick_backend()
 
     if backend == "openvino":
-        if not has_ov_model(OV_MODEL_PATH):
+        if not has_model(OV_MODEL_PATH):
             raise RuntimeError(f"No OpenVINO model available at {OV_MODEL_PATH}")
         from optimum.intel.openvino import OVModelForVisualCausalLM
         from transformers import AutoProcessor
@@ -40,7 +40,7 @@ def _ensure_loaded():
         _processor = AutoProcessor.from_pretrained(str(OV_MODEL_PATH))
 
     elif backend == "mlx":
-        if not has_mlx_model(MLX_MODEL_PATH):
+        if not has_model(MLX_MODEL_PATH):
             raise RuntimeError(f"No MLX model available at {MLX_MODEL_PATH}")
         
         from mlx_vlm import load
@@ -49,7 +49,7 @@ def _ensure_loaded():
         _config = load_config(str(MLX_MODEL_PATH))   # needed by apply_chat_template
 
     else:
-        if not has_hf_model(HF_MODEL_PATH):
+        if not has_model(HF_MODEL_PATH):
             raise RuntimeError(f"No Hugging Face model available at {HF_MODEL_PATH}")
 
         import torch

@@ -226,11 +226,6 @@ def handle_query(session_id: str, query: str, video_path: str | None):
 
             resolved.append((_TOOLS[tool_name]["server"], tool_name, args, TOOL_HEADERS.get(tool_name, tool_name.upper()), None))
 
-        # Dependency guard: if gather tools (transcribe/analyze) are in the same batch as
-        # generation tools, silently drop generation — the LLM composed those arguments
-        # speculatively (before seeing results), so they'd contain placeholders.
-        # The gather results will feed back into context, and the LLM will naturally
-        # re-call generation next iteration with the REAL content.
         has_gather = any(n in NEEDS_FILE_PATH_INJECTION for (_, n, _, _, e) in resolved if e is None)
         if has_gather:
             resolved = [(s, n, a, h, e) for (s, n, a, h, e) in resolved if n not in GENERATION_TOOLS]
@@ -247,6 +242,7 @@ def handle_query(session_id: str, query: str, video_path: str | None):
 
         # call all the listed tools in resolved that has no errors
         req = [(s, n, a) for (s, n, a, _, e) in resolved if e is None]
+        print(f"Orchestrator: tool calls - {req}")
         outputs = iter(mcp_client.call_tools_parallel(req))
 
         # collect results 

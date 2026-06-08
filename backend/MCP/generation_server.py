@@ -17,9 +17,9 @@ mcp = FastMCP("generation", host=HOST, port=PORTS["generation"])
 @mcp.tool()
 def generate_pdf(title: str, sections: list[dict]) -> str:
     """
-    Creates a PDF report from structured content. Use this when the user
+    Creates a PDF report from structured content. Use this, ONLY when the user
     asks for a 'report', 'PDF', 'document', or 'summary document'.
-
+     Note that this tool should never be called with other tools.
     Args:
         title: report title that appears at the top of the first page.
         sections: list of {"heading": str, "body": str}. Each becomes a section
@@ -35,9 +35,9 @@ def generate_pdf(title: str, sections: list[dict]) -> str:
 @mcp.tool()
 def generate_pptx(title: str, sections: list[dict]) -> str:
     """
-    Creates a PowerPoint slide deck from structured content. Use this when
+    Creates a PowerPoint slide deck from structured content. Use this, ONLY when
     the user asks for a 'slide deck', 'PPTX', 'presentation', or 'slides'.
-
+    Note that this tool should never be called with other tools.
     Args:
         title: title for the opening slide.
         sections: list of {"heading": str, "body": str}. Each becomes one slide

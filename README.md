@@ -94,28 +94,20 @@ hf  download  openai/whisper-base  --local-dir  models/whisper-base
 ```
 **Apple Silicon**
 ```bash
-# 
 cd backend
-hf download mlx-community/Qwen2.5-3B-Instruct-4bit    --local-dir models/qwen2.5-3b-instruct-mlx-4bit
+hf download mlx-community/Qwen2.5-3B-Instruct-8bit    --local-dir models/qwen2.5-3b-instruct-mlx-8bit
 hf download mlx-community/Qwen2.5-VL-3B-Instruct-4bit --local-dir models/qwen2.5-vl-3b-mlx-4bit
 hf download mlx-community/whisper-base-mlx-4bit       --local-dir models/whisper-base-mlx-4bit
 ```
 
 **Intel hosts** use the OpenVINO runtime with int4/int8 models:
 ```bash
-# If too slow switch to 3B version 
 cd  backend
-
-hf download OpenVINO/Qwen2.5-3B-Instruct-int4-ov --local-dir models/qwen2.5-7b-int4
-hf download OpenVINO/Qwen2.5-VL-3B-Instruct-int4-ov --local-dir models/qwen2.5-vl-7b-int4
-hf  download  OpenVINO/whisper-base-int8-ov  --local-dir  models/whisper-base-int8-ov
-```
-
-If the OpenVINO repos aren't available, convert from the base models yourself:
-```bash
 optimum-cli export openvino --model Qwen/Qwen2.5-3B-Instruct --weight-format int4 models/qwen2.5-3b-int4
 optimum-cli export openvino --model Qwen/Qwen2.5-VL-3B-Instruct --weight-format int4 models/qwen2.5-vl-3b-int4
+hf download OpenVINO/whisper-base-int8-ov  --local-dir  models/whisper-base-int8-ov
 ```
+
 
 ### 3. Frontend (React + Tauri)
 

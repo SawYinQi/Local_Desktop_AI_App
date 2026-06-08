@@ -6,7 +6,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from utils.runtime import pick_backend, has_ov_model, has_mlx_model, has_hf_model
+from utils.runtime import pick_backend, has_model
 
 OV_MODEL_PATH = BACKEND_DIR / "models" / "whisper-base-int8-ov" # OpenVINO-optimized model path
 HF_MODEL_PATH = BACKEND_DIR / "models" / "whisper-base" # Hugging Face model path 
@@ -28,14 +28,14 @@ def _ensure_loaded():
     # MLX (Apple Silicon): mlx-whisper exposes a stateless transcribe() that loads and
     # caches the model itself, so there's no pipeline to build — just check the model exists.
     if backend == "mlx":
-        if not has_mlx_model(MLX_MODEL_PATH):
+        if not has_model(MLX_MODEL_PATH):
             raise RuntimeError(f"No MLX model available at {MLX_MODEL_PATH}")
         _BACKEND = backend
         return
 
     # load OpenVINO model
     if backend == "openvino":
-        if not has_ov_model(OV_MODEL_PATH):
+        if not has_model(OV_MODEL_PATH):
             raise RuntimeError(f"No OpenVINO model available at {OV_MODEL_PATH}")
 
         from optimum.intel.openvino import OVModelForSpeechSeq2Seq
@@ -46,7 +46,7 @@ def _ensure_loaded():
 
     # load Hugging Face model
     else:
-        if not has_hf_model(HF_MODEL_PATH):
+        if not has_model(HF_MODEL_PATH):
             raise RuntimeError(f"No Hugging Face model available at {HF_MODEL_PATH}")
 
         import torch

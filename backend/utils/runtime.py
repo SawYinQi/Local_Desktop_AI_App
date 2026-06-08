@@ -21,15 +21,7 @@ def pick_backend() -> str:
     else:
         return "transformers"    # default to transformers for unknown platforms 
     
-# check if OpenVINO model exist at the given path
-def has_ov_model(p: Path) -> bool:
-    return (p / "openvino_model.bin").exists() and (p / "openvino_encoder_model.bin").exists()
+# check if a model directory exists at the given path.
+def has_model(p: Path) -> bool:
+    return p.exists() and p.is_dir()
 
-# check if an MLX model exists at the given path. MLX weights are .safetensors (LLM/VLM)
-# or .npz (whisper); both ship a config.json alongside.
-def has_mlx_model(p: Path) -> bool:
-    return (p / "config.json").exists() and (any(p.glob("*.safetensors")) or any(p.glob("*.npz")))
-
-# check if Hugging Face model exist at the given path
-def has_hf_model(p: Path) -> bool:
-    return (p / "config.json").exists() and not has_ov_model(p) and not has_mlx_model(p)
